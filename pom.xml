@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.springaicommunity</groupId>
+	<artifactId>spring-ai-a2a-parent</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>Spring AI A2A</name>
+	<description>Agent-to-Agent (A2A) Protocol support for Spring AI</description>
+	<url>https://github.com/spring-ai-community/spring-ai-a2a</url>
+
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<name>Spring AI Community</name>
+			<organization>Spring AI Community</organization>
+			<organizationUrl>https://github.com/spring-ai-community</organizationUrl>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com/spring-ai-community/spring-ai-a2a.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/spring-ai-community/spring-ai-a2a.git</developerConnection>
+		<url>https://github.com/spring-ai-community/spring-ai-a2a</url>
+	</scm>
+
+	<modules>
+		<module>spring-ai-a2a-core</module>
+		<module>spring-ai-a2a-server</module>
+		<module>spring-ai-a2a-examples</module>
+		<module>spring-ai-a2a-integration-tests</module>
+	</modules>
+
+	<properties>
+		<java.version>17</java.version>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<!-- Spring Boot and Spring AI versions -->
+		<spring-boot.version>4.0.1</spring-boot.version>
+		<spring-ai.version>2.0.0-M1</spring-ai.version>
+
+		<!-- A2A Java SDK version -->
+		<a2a-java-sdk.version>0.4.0.Alpha1-SNAPSHOT</a2a-java-sdk.version>
+
+		<!-- Plugin versions -->
+		<maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Spring Boot BOM -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>${spring-boot.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- Spring AI BOM -->
+			<dependency>
+				<groupId>org.springframework.ai</groupId>
+				<artifactId>spring-ai-bom</artifactId>
+				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!-- A2A Java SDK -->
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-spec</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-common</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-server-common</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-client</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.a2asdk</groupId>
+				<artifactId>a2a-java-sdk-transport-jsonrpc</artifactId>
+				<version>${a2a-java-sdk.version}</version>
+			</dependency>
+
+			<!-- Spring AI A2A modules -->
+			<dependency>
+				<groupId>org.springaicommunity</groupId>
+				<artifactId>spring-ai-a2a-core</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springaicommunity</groupId>
+				<artifactId>spring-ai-a2a-server</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>${maven-compiler-plugin.version}</version>
+					<configuration>
+						<source>${java.version}</source>
+						<target>${java.version}</target>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>${maven-surefire-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<version>${spring-boot.version}</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<repositories>
+		<repository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</pluginRepository>
+	</pluginRepositories>
+
+</project>
