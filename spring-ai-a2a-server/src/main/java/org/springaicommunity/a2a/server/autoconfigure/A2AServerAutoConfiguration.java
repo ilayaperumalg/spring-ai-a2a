@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.util.StringUtils;
 import org.springaicommunity.a2a.server.A2AServer;
 import org.springaicommunity.a2a.server.DefaultA2AServer;
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 
 import java.util.List;
 
@@ -42,7 +42,7 @@ import java.util.List;
  * This auto-configuration will:
  * <ul>
  * <li>Create an {@link AgentCard} bean based on configuration properties if not already defined</li>
- * <li>Create an {@link A2AServer} bean if an {@link A2AAgentModel} is present</li>
+ * <li>Create an {@link A2AServer} bean if an {@link A2AExecutor} is present</li>
  * <li>Expose A2A protocol endpoints for agent-to-agent communication</li>
  * </ul>
  *
@@ -67,7 +67,7 @@ import java.util.List;
  * </pre>
  *
  * <p>
- * Users only need to provide an {@link A2AAgentModel} bean and the starter will automatically
+ * Users only need to provide an {@link A2AExecutor} bean and the starter will automatically
  * configure the A2A server.
  *
  * @author Ilayaperumal Gopinathan
@@ -168,9 +168,9 @@ public class A2AServerAutoConfiguration {
 	}
 
 	/**
-	 * Create the A2A Agent Server bean if an A2AAgentModel is present.
+	 * Create the A2A Agent Server bean if an A2AExecutor is present.
 	 * <p>
-	 * This enforces that Spring AI applications must use {@link A2AAgentModel}
+	 * This enforces that Spring AI applications must use {@link A2AExecutor}
 	 * instead of the generic {@link io.a2a.server.agentexecution.AgentExecutor} from the
 	 * A2A SDK. This ensures proper integration with Spring AI's lifecycle and capabilities.
 	 * @param agentCard the agent card
@@ -179,8 +179,8 @@ public class A2AServerAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	@ConditionalOnBean(A2AAgentModel.class)
-	public DefaultA2AServer a2aAgentServer(AgentCard agentCard, A2AAgentModel agentModel) {
+	@ConditionalOnBean(A2AExecutor.class)
+	public DefaultA2AServer a2aAgentServer(AgentCard agentCard, A2AExecutor agentModel) {
 		logger.info("Creating A2AServer for agent: {}", agentCard.name());
 
 		return new DefaultA2AServer(agentCard, agentModel);

@@ -17,7 +17,6 @@
 package org.springaicommunity.a2a.server.agentexecution;
 
 import java.util.List;
-import java.util.Map;
 
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.agentexecution.RequestContext;
@@ -28,29 +27,19 @@ import io.a2a.spec.Part;
 import io.a2a.spec.TextPart;
 import reactor.core.publisher.Flux;
 
-import org.springaicommunity.agents.model.AgentGeneration;
-import org.springaicommunity.agents.model.AgentGenerationMetadata;
-import org.springaicommunity.agents.model.AgentModel;
-import org.springaicommunity.agents.model.AgentResponse;
-import org.springaicommunity.agents.model.AgentResponseMetadata;
-import org.springaicommunity.agents.model.AgentTaskRequest;
 import org.springframework.ai.chat.client.ChatClient;
 
 /**
- * Agent interface that bridges Spring AI's {@link AgentModel} with A2A protocol execution.
+ * Agent executor interface that bridges Spring AI's ChatClient with A2A protocol execution.
  *
- * <p>This interface serves as a multi-layer adapter:
- * <ul>
- * <li><strong>Spring AI AgentModel</strong>: Task-oriented {@link #call(AgentTaskRequest)}</li>
- * <li><strong>A2A SDK AgentExecutor</strong>: Protocol-level {@code execute(RequestContext, EventQueue)}</li>
- * <li><strong>Lifecycle Management</strong>: Optional hooks for customization</li>
- * </ul>
+ * <p>This interface extends the A2A SDK's {@link AgentExecutor} and provides integration
+ * with Spring AI's {@link ChatClient} for LLM-based agent execution.
  *
  * <p><strong>Simple Usage (90% of cases):</strong>
  * <pre>
  * &#64;Bean
- * public A2AAgentModel weatherAgent(ChatModel chatModel) {
- *     return A2AAgentModel.builder()
+ * public A2AExecutor weatherAgent(ChatModel chatModel) {
+ *     return A2AExecutor.builder()
  *         .chatClient(ChatClient.builder(chatModel).build())
  *         .systemPrompt("You are a weather assistant...")
  *         .build();
@@ -60,8 +49,8 @@ import org.springframework.ai.chat.client.ChatClient;
  * <p><strong>Custom Logic (10% of cases):</strong>
  * <pre>
  * &#64;Bean
- * public A2AAgentModel researchAgent(ChatModel chatModel, DocumentRepo repo) {
- *     return A2AAgentModel.builder()
+ * public A2AExecutor researchAgent(ChatModel chatModel, DocumentRepo repo) {
+ *     return A2AExecutor.builder()
  *         .chatClient(ChatClient.builder(chatModel).build())
  *         .systemPrompt("You are a research assistant...")
  *         .responseGenerator(userInput -> {
@@ -85,18 +74,17 @@ import org.springframework.ai.chat.client.ChatClient;
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
- * @see AgentModel
  * @see AgentExecutor
- * @see DefaultA2AAgentModel
+ * @see DefaultA2AExecutor
  */
-public interface A2AAgentModel extends AgentModel, AgentExecutor {
+public interface A2AExecutor extends AgentExecutor {
 
 	/**
-	 * Create a new builder for constructing A2AAgentModel instances.
+	 * Create a new builder for constructing A2AExecutor instances.
 	 * @return a new builder instance
 	 */
-	static A2AAgentModelBuilder builder() {
-		return new DefaultA2AAgentModelBuilder();
+	static A2AExecutorBuilder builder() {
+		return new DefaultA2AExecutorBuilder();
 	}
 
 	/**
@@ -143,46 +131,6 @@ public interface A2AAgentModel extends AgentModel, AgentExecutor {
 		String systemPrompt = getSystemPrompt();
 		String response = getChatClient().prompt().system(systemPrompt).user(userInput).call().content();
 		return List.of(new TextPart(response));
-	}
-
-	/**
-	 * Execute an agent task using the Spring AI AgentModel pattern.
-	 * <p>
-	 * This method implements the {@link AgentModel#call(AgentTaskRequest)} interface by
-	 * delegating to {@link #generateResponse(String)}.
-	 * @param request the agent task request containing goal and context
-	 * @return the agent response with results
-	 */
-	@Override
-	default AgentResponse call(AgentTaskRequest request) {
-		try {
-			String goal = request.goal();
-			List<Part<?>> responseParts = generateResponse(goal);
-			String responseText = org.springaicommunity.a2a.core.MessageUtils.extractText(responseParts);
-
-			AgentGeneration generation = new AgentGeneration(responseText);
-			return AgentResponse.builder()
-				.results(List.of(generation))
-				.metadata(new AgentResponseMetadata())
-				.build();
-		}
-		catch (Exception e) {
-			AgentGeneration errorGeneration = new AgentGeneration("Error: " + e.getMessage(),
-					new AgentGenerationMetadata("ERROR", Map.of("error", e.getMessage())));
-			return AgentResponse.builder()
-				.results(List.of(errorGeneration))
-				.metadata(new AgentResponseMetadata())
-				.build();
-		}
-	}
-
-	/**
-	 * Check if this agent is available and ready to process tasks.
-	 * @return true if the agent is available, false otherwise
-	 */
-	@Override
-	default boolean isAvailable() {
-		return true;
 	}
 
 	// ==================== Lifecycle Hooks ====================
@@ -253,7 +201,7 @@ public interface A2AAgentModel extends AgentModel, AgentExecutor {
 	/**
 	 * Executes the agent synchronously and returns the response.
 	 * <p>
-	 * Implementation provided by {@link DefaultA2AAgentModel}.
+	 * Implementation provided by {@link DefaultA2AExecutor}.
 	 * @param request the A2A SDK message request
 	 * @return the A2A SDK message response
 	 */

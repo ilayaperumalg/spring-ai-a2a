@@ -18,6 +18,9 @@ package org.springaicommunity.a2a.client.tool;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.a2a.spec.Message;
+import io.a2a.spec.Part;
+import io.a2a.spec.TextPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
@@ -25,8 +28,7 @@ import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springaicommunity.a2a.client.A2AClient;
 import org.springaicommunity.a2a.client.DefaultA2AClient;
-import org.springaicommunity.agents.model.AgentResponse;
-import org.springaicommunity.agents.model.AgentTaskRequest;
+import org.springaicommunity.a2a.core.MessageUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -234,7 +236,7 @@ public class A2AToolCallback implements ToolCallback {
 	/**
 	 * Execute task synchronously and wait for immediate response.
 	 *
-	 * <p>Uses the synchronous {@link A2AClient#call(AgentTaskRequest)} method
+	 * <p>Uses the synchronous {@link A2AClient#sendMessage(Message)} method
 	 * to get an immediate response from the remote agent. Unlike background
 	 * execution, progress updates are not collected - only the final result
 	 * is returned.
@@ -250,16 +252,20 @@ public class A2AToolCallback implements ToolCallback {
 	private String executeSynchronous(A2AClient client, TaskParams params) {
 		logger.info("Executing synchronous A2A task: {} (type: {})", params.description(), params.subagentType());
 
-		AgentTaskRequest taskRequest = AgentTaskRequest.builder(params.prompt(), null).build();
+		// Create A2A Message
+		Message request = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart(params.prompt())))
+			.build();
 
-		// Use synchronous call() for immediate response
-		AgentResponse finalResponse = client.call(taskRequest);
+		// Use synchronous sendMessage() for immediate response
+		Message response = client.sendMessage(request);
 
 		logger.info("A2A task completed: {} (status: {})", params.description(),
-				finalResponse != null ? "SUCCESS" : "FAILED");
+				response != null ? "SUCCESS" : "FAILED");
 
 		// Synchronous execution returns only final result without progress updates
-		return formatResult(params, List.of(), finalResponse);
+		return formatResult(params, List.of(), response);
 	}
 
 	/**
@@ -271,16 +277,23 @@ public class A2AToolCallback implements ToolCallback {
 		logger.info("Starting background A2A task: {} (id: {})", params.description(), taskId);
 
 		CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
-			AgentTaskRequest taskRequest = AgentTaskRequest.builder(params.prompt(), null).build();
+			// Create A2A Message
+			Message request = Message.builder()
+				.role(Message.Role.USER)
+				.parts(List.of(new TextPart(params.prompt())))
+				.build();
 
 			List<String> progressUpdates = new ArrayList<>();
-			AgentResponse finalResponse = null;
+			Message finalResponse = null;
 
-			for (AgentResponse response : client.stream(taskRequest).toIterable()) {
+			for (Message message : client.streamMessage(request).toIterable()) {
 				// Collect all intermediate responses as progress updates
-				if (response != null && response.getText() != null) {
-					progressUpdates.add(response.getText());
-					finalResponse = response; // Keep the latest response
+				if (message != null && message.parts() != null) {
+					String text = MessageUtils.extractText(message.parts());
+					if (text != null) {
+						progressUpdates.add(text);
+					}
+					finalResponse = message; // Keep the latest response
 				}
 			}
 
@@ -375,9 +388,9 @@ public class A2AToolCallback implements ToolCallback {
 	/**
 	 * Format the final result with optional progress updates.
 	 */
-	private String formatResult(TaskParams params, List<String> progressUpdates, AgentResponse finalResponse) {
+	private String formatResult(TaskParams params, List<String> progressUpdates, Message finalResponse) {
 		if (!params.isIncludeProgress() && finalResponse != null) {
-			return finalResponse.getText();
+			return MessageUtils.extractText(finalResponse.parts());
 		}
 
 		StringBuilder result = new StringBuilder();
@@ -393,7 +406,7 @@ public class A2AToolCallback implements ToolCallback {
 		}
 
 		if (finalResponse != null) {
-			result.append(finalResponse.getText());
+			result.append(MessageUtils.extractText(finalResponse.parts()));
 		}
 		else {
 			result.append("*Task completed but no response received*");

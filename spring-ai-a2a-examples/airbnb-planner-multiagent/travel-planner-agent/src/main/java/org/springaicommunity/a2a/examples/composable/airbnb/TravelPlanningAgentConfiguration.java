@@ -23,7 +23,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 
 import java.util.List;
 
@@ -50,7 +50,7 @@ import java.util.List;
  * <ol>
  *   <li>Properties loaded from application.yml</li>
  *   <li>{@link #travelPlanningAgent(ChatModel, List)} creates agent using builder</li>
- *   <li>Spring Boot auto-configuration detects A2AAgentModel bean</li>
+ *   <li>Spring Boot auto-configuration detects A2AExecutor bean</li>
  *   <li>Auto-configuration creates AgentCard from properties</li>
  *   <li>Auto-configuration creates DefaultA2AServer automatically</li>
  * </ol>
@@ -64,12 +64,12 @@ public class TravelPlanningAgentConfiguration {
 	private static final Logger logger = LoggerFactory.getLogger(TravelPlanningAgentConfiguration.class);
 
 	/**
-	 * Create Travel Planning Agent using A2AAgentModel builder pattern.
+	 * Create Travel Planning Agent using A2AExecutor builder pattern.
 	 *
 	 * <p>This demonstrates the <strong>builder-based</strong> approach:
 	 * <ul>
 	 *   <li>No class inheritance required</li>
-	 *   <li>Declarative configuration using A2AAgentModel.builder()</li>
+	 *   <li>Declarative configuration using A2AExecutor.builder()</li>
 	 *   <li>ChatClient configured with all available tools via zero-config injection</li>
 	 *   <li>System prompt defines agent behavior and capabilities</li>
 	 * </ul>
@@ -79,10 +79,10 @@ public class TravelPlanningAgentConfiguration {
 	 *
 	 * @param chatModel the chat model for LLM interactions
 	 * @param toolCallbacks all available tools (A2A remote agents, MCP, custom, agent-utils)
-	 * @return the configured A2A agent model
+	 * @return the configured A2A executor
 	 */
 	@Bean
-	public A2AAgentModel travelPlanningAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks) {
+	public A2AExecutor travelPlanningAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks) {
 		logger.info("Creating TravelPlanningAgent with {} tools:", toolCallbacks.size());
 		toolCallbacks.forEach(tool ->
 			logger.info("  • {} - {}",
@@ -90,7 +90,7 @@ public class TravelPlanningAgentConfiguration {
 				tool.getToolDefinition().description())
 		);
 
-		return A2AAgentModel.builder()
+		return A2AExecutor.builder()
 			.chatClient(ChatClient.builder(chatModel)
 				.defaultToolCallbacks(toolCallbacks)
 				.build())
@@ -256,9 +256,9 @@ public class TravelPlanningAgentConfiguration {
 	}
 
 	/*
-	 * NOTE: This configuration uses A2AAgentModel.builder()'s default execution implementation.
+	 * NOTE: This configuration uses A2AExecutor.builder()'s default execution implementation.
 	 *
-	 * The builder creates an A2AAgentModel that executes requests using:
+	 * The builder creates an A2AExecutor that executes requests using:
 	 *   getChatClient().prompt()
 	 *     .system(getSystemPrompt())
 	 *     .user(userInput)
@@ -277,7 +277,7 @@ public class TravelPlanningAgentConfiguration {
 	 *
 	 * If you need multi-step processing with progress updates, use:
 	 *
-	 * A2AAgentModel.builder()
+	 * A2AExecutor.builder()
 	 *     .chatClient(chatClient)
 	 *     .systemPrompt(getSystemPrompt())
 	 *     .responseGenerator(userInput -> {

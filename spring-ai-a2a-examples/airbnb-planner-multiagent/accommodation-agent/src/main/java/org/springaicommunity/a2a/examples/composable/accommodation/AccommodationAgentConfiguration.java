@@ -22,7 +22,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 
 /**
  * Accommodation Agent Configuration - Non-intrusive builder-based approach.
@@ -70,10 +70,10 @@ public class AccommodationAgentConfiguration {
 	 * @return the configured agent executor
 	 */
 	@Bean
-	public A2AAgentModel accommodationAgent(ChatModel chatModel) {
+	public A2AExecutor accommodationAgent(ChatModel chatModel) {
 		logger.info("Creating AccommodationAgent using builder pattern");
 
-		return A2AAgentModel.builder()
+		return A2AExecutor.builder()
 			.chatClient(ChatClient.builder(chatModel).build())
 			.systemPrompt(getSystemPrompt())
 			.build();

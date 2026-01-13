@@ -30,17 +30,17 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.util.Assert;
 
 /**
- * Default implementation of {@link A2AAgentModelBuilder}.
+ * Default implementation of {@link A2AExecutorBuilder}.
  *
- * <p>This builder provides a fluent API for creating {@link DefaultA2AAgentModel} instances
+ * <p>This builder provides a fluent API for creating {@link DefaultA2AExecutor} instances
  * with varying levels of customization.
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
- * @see A2AAgentModelBuilder
- * @see DefaultA2AAgentModel
+ * @see A2AExecutorBuilder
+ * @see DefaultA2AExecutor
  */
-public final class DefaultA2AAgentModelBuilder implements A2AAgentModelBuilder {
+public final class DefaultA2AExecutorBuilder implements A2AExecutorBuilder {
 
 	private ChatClient chatClient;
 
@@ -56,20 +56,20 @@ public final class DefaultA2AAgentModelBuilder implements A2AAgentModelBuilder {
 	private BiFunction<Exception, RequestContext, Void> onErrorHook;
 
 	/**
-	 * Package-private constructor - use {@link A2AAgentModel#builder()}.
+	 * Package-private constructor - use {@link A2AExecutor#builder()}.
 	 */
-	DefaultA2AAgentModelBuilder() {
+	DefaultA2AExecutorBuilder() {
 	}
 
 	@Override
-	public A2AAgentModelBuilder chatClient(ChatClient chatClient) {
+	public A2AExecutorBuilder chatClient(ChatClient chatClient) {
 		Assert.notNull(chatClient, "chatClient cannot be null");
 		this.chatClient = chatClient;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModelBuilder chatModel(ChatModel chatModel, List<ToolCallback> tools) {
+	public A2AExecutorBuilder chatModel(ChatModel chatModel, List<ToolCallback> tools) {
 		Assert.notNull(chatModel, "chatModel cannot be null");
 		// Build ChatClient with tools
 		ChatClient.Builder builder = ChatClient.builder(chatModel);
@@ -81,44 +81,44 @@ public final class DefaultA2AAgentModelBuilder implements A2AAgentModelBuilder {
 	}
 
 	@Override
-	public A2AAgentModelBuilder systemPrompt(String systemPrompt) {
+	public A2AExecutorBuilder systemPrompt(String systemPrompt) {
 		Assert.hasText(systemPrompt, "systemPrompt cannot be null or empty");
 		this.systemPrompt = systemPrompt;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModelBuilder responseGenerator(Function<String, List<Part<?>>> responseGenerator) {
+	public A2AExecutorBuilder responseGenerator(Function<String, List<Part<?>>> responseGenerator) {
 		this.responseGenerator = responseGenerator;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModelBuilder beforeComplete(BiFunction<List<Part<?>>, RequestContext, List<Part<?>>> beforeComplete) {
+	public A2AExecutorBuilder beforeComplete(BiFunction<List<Part<?>>, RequestContext, List<Part<?>>> beforeComplete) {
 		this.beforeCompleteHook = beforeComplete;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModelBuilder afterComplete(Consumer<RequestContext> afterComplete) {
+	public A2AExecutorBuilder afterComplete(Consumer<RequestContext> afterComplete) {
 		this.afterCompleteHook = afterComplete;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModelBuilder onError(BiFunction<Exception, RequestContext, Void> onError) {
+	public A2AExecutorBuilder onError(BiFunction<Exception, RequestContext, Void> onError) {
 		this.onErrorHook = onError;
 		return this;
 	}
 
 	@Override
-	public A2AAgentModel build() {
+	public A2AExecutor build() {
 		// Validate required fields
 		Assert.notNull(this.chatClient, "chatClient is required - call chatClient() or chatModel() first");
 		Assert.hasText(this.systemPrompt, "systemPrompt is required - call systemPrompt() first");
 
 		// Create and return the agent
-		return new DefaultA2AAgentModel(this.chatClient, this.systemPrompt, this.responseGenerator,
+		return new DefaultA2AExecutor(this.chatClient, this.systemPrompt, this.responseGenerator,
 				this.beforeCompleteHook, this.afterCompleteHook, this.onErrorHook);
 	}
 

@@ -34,7 +34,7 @@ import org.springaicommunity.a2a.core.MessageUtils;
 import org.springframework.ai.chat.client.ChatClient;
 
 /**
- * Default concrete implementation of {@link A2AAgentModel} using builder-provided functions.
+ * Default concrete implementation of {@link A2AExecutor} using builder-provided functions.
  *
  * <p>This class serves as the standard implementation for creating A2A agents. Unlike
  * {@code DefaultSpringAIAgentExecutor} (which was abstract and required subclassing),
@@ -49,7 +49,7 @@ import org.springframework.ai.chat.client.ChatClient;
  *
  * <p><strong>Simple Usage (90% of cases):</strong>
  * <pre>
- * A2AAgentModel weatherAgent = A2AAgentModel.builder()
+ * A2AExecutor weatherAgent = A2AExecutor.builder()
  *     .chatClient(ChatClient.builder(chatModel).build())
  *     .systemPrompt("You are a weather assistant...")
  *     .build();
@@ -57,7 +57,7 @@ import org.springframework.ai.chat.client.ChatClient;
  *
  * <p><strong>Custom Logic (10% of cases):</strong>
  * <pre>
- * A2AAgentModel researchAgent = A2AAgentModel.builder()
+ * A2AExecutor researchAgent = A2AExecutor.builder()
  *     .chatClient(ChatClient.builder(chatModel).build())
  *     .systemPrompt("You are a research assistant...")
  *     .responseGenerator(userInput -> {
@@ -80,10 +80,10 @@ import org.springframework.ai.chat.client.ChatClient;
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
- * @see A2AAgentModel
- * @see A2AAgentModelBuilder
+ * @see A2AExecutor
+ * @see A2AExecutorBuilder
  */
-public final class DefaultA2AAgentModel implements A2AAgentModel {
+public final class DefaultA2AExecutor implements A2AExecutor {
 
 	private final ChatClient chatClient;
 
@@ -112,7 +112,7 @@ public final class DefaultA2AAgentModel implements A2AAgentModel {
 	 * @param afterCompleteHook optional post-completion hook
 	 * @param onErrorHook optional error handling hook
 	 */
-	DefaultA2AAgentModel(ChatClient chatClient, String systemPrompt,
+	DefaultA2AExecutor(ChatClient chatClient, String systemPrompt,
 			Function<String, List<Part<?>>> responseGenerator,
 			BiFunction<List<Part<?>>, RequestContext, List<Part<?>>> beforeCompleteHook,
 			Consumer<RequestContext> afterCompleteHook, BiFunction<Exception, RequestContext, Void> onErrorHook) {
@@ -175,7 +175,7 @@ public final class DefaultA2AAgentModel implements A2AAgentModel {
 			return this.responseGenerator.apply(userInput);
 		}
 		// Default implementation from interface
-		return A2AAgentModel.super.generateResponse(userInput);
+		return A2AExecutor.super.generateResponse(userInput);
 	}
 
 	@Override
@@ -185,7 +185,7 @@ public final class DefaultA2AAgentModel implements A2AAgentModel {
 			return this.beforeCompleteHook.apply(parts, context);
 		}
 		// Default implementation from interface
-		return A2AAgentModel.super.beforeComplete(parts, context);
+		return A2AExecutor.super.beforeComplete(parts, context);
 	}
 
 	@Override
@@ -195,7 +195,7 @@ public final class DefaultA2AAgentModel implements A2AAgentModel {
 			this.afterCompleteHook.accept(context);
 		}
 		// Default implementation from interface
-		A2AAgentModel.super.afterComplete(context);
+		A2AExecutor.super.afterComplete(context);
 	}
 
 	@Override
@@ -205,7 +205,7 @@ public final class DefaultA2AAgentModel implements A2AAgentModel {
 			this.onErrorHook.apply(error, context);
 		}
 		// Default implementation from interface
-		A2AAgentModel.super.onError(error, context, taskUpdater);
+		A2AExecutor.super.onError(error, context, taskUpdater);
 	}
 
 	// ==================== A2A SDK AgentExecutor Implementation ====================

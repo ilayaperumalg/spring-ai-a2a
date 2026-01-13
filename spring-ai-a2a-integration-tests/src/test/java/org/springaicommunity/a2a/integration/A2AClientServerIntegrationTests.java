@@ -17,15 +17,18 @@
 package org.springaicommunity.a2a.integration;
 
 import io.a2a.spec.AgentCard;
+import io.a2a.spec.Message;
+import io.a2a.spec.TextPart;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springaicommunity.a2a.client.A2AClient;
 import org.springaicommunity.a2a.client.DefaultA2AClient;
-import org.springaicommunity.agents.model.AgentResponse;
-import org.springaicommunity.agents.model.AgentTaskRequest;
+import org.springaicommunity.a2a.core.MessageUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <ul>
  * <li>Agent card discovery and retrieval</li>
  * <li>DefaultA2AClient usage</li>
- * <li>Basic request/response communication using AgentModel API</li>
+ * <li>Basic request/response communication using A2A SDK Message types</li>
  * <li>Message content handling and transformation</li>
  * <li>Multiple sequential calls</li>
  * </ul>
@@ -132,33 +135,38 @@ class A2AClientServerIntegrationTests {
 	}
 
 	/**
-	 * Tests basic synchronous request/response using DefaultA2AClient with AgentModel API.
+	 * Tests basic synchronous request/response using DefaultA2AClient with A2A SDK Message API.
 	 *
 	 * <p>
 	 * This test verifies:
 	 * <ul>
-	 * <li>DefaultA2AClient can send tasks to A2A agents using call() method</li>
-	 * <li>AgentTaskRequest is properly processed</li>
-	 * <li>AgentResponse contains the expected text content</li>
+	 * <li>DefaultA2AClient can send messages to A2A agents using sendMessage() method</li>
+	 * <li>A2A SDK Message is properly processed</li>
+	 * <li>Response Message contains the expected text content</li>
 	 * </ul>
 	 */
 	@Test
 	void testBasicClientServerCommunication() {
-		// Create a task request using the AgentModel API
-		AgentTaskRequest request = AgentTaskRequest.builder("Hello, agent!", null).build();
+		// Create a message using A2A SDK types
+		Message request = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("Hello, agent!")))
+			.build();
 
-		// Send the request and get response using call()
-		AgentResponse response = this.agentClient.call(request);
+		// Send the request and get response using sendMessage()
+		Message response = this.agentClient.sendMessage(request);
 
 		// Verify response
 		assertThat(response).isNotNull();
-		assertThat(response.getText()).isNotNull();
-		assertThat(response.getText()).contains("Echo:");
-		assertThat(response.getText()).contains("Hello, agent!");
+		assertThat(response.parts()).isNotNull();
+		String responseText = MessageUtils.extractText(response.parts());
+		assertThat(responseText).isNotNull();
+		assertThat(responseText).contains("Echo:");
+		assertThat(responseText).contains("Hello, agent!");
 	}
 
 	/**
-	 * Tests multiple sequential calls using DefaultA2AClient with AgentModel API.
+	 * Tests multiple sequential calls using DefaultA2AClient with A2A SDK Message API.
 	 *
 	 * <p>
 	 * This test verifies:
@@ -171,31 +179,43 @@ class A2AClientServerIntegrationTests {
 	@Test
 	void testMultipleSequentialCalls() {
 		// First call
-		AgentTaskRequest request1 = AgentTaskRequest.builder("First message", null).build();
-		AgentResponse response1 = this.agentClient.call(request1);
+		Message request1 = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("First message")))
+			.build();
+		Message response1 = this.agentClient.sendMessage(request1);
 
 		assertThat(response1).isNotNull();
-		assertThat(response1.getText()).isNotNull();
-		assertThat(response1.getText()).contains("Echo:");
-		assertThat(response1.getText()).contains("First message");
+		String text1 = MessageUtils.extractText(response1.parts());
+		assertThat(text1).isNotNull();
+		assertThat(text1).contains("Echo:");
+		assertThat(text1).contains("First message");
 
 		// Second call
-		AgentTaskRequest request2 = AgentTaskRequest.builder("Second message", null).build();
-		AgentResponse response2 = this.agentClient.call(request2);
+		Message request2 = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("Second message")))
+			.build();
+		Message response2 = this.agentClient.sendMessage(request2);
 
 		assertThat(response2).isNotNull();
-		assertThat(response2.getText()).isNotNull();
-		assertThat(response2.getText()).contains("Echo:");
-		assertThat(response2.getText()).contains("Second message");
+		String text2 = MessageUtils.extractText(response2.parts());
+		assertThat(text2).isNotNull();
+		assertThat(text2).contains("Echo:");
+		assertThat(text2).contains("Second message");
 
 		// Third call
-		AgentTaskRequest request3 = AgentTaskRequest.builder("Third message", null).build();
-		AgentResponse response3 = this.agentClient.call(request3);
+		Message request3 = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("Third message")))
+			.build();
+		Message response3 = this.agentClient.sendMessage(request3);
 
 		assertThat(response3).isNotNull();
-		assertThat(response3.getText()).isNotNull();
-		assertThat(response3.getText()).contains("Echo:");
-		assertThat(response3.getText()).contains("Third message");
+		String text3 = MessageUtils.extractText(response3.parts());
+		assertThat(text3).isNotNull();
+		assertThat(text3).contains("Echo:");
+		assertThat(text3).contains("Third message");
 	}
 
 	/**
@@ -211,12 +231,16 @@ class A2AClientServerIntegrationTests {
 	@Test
 	void testUppercaseSkill() {
 		// Send a message with uppercase keyword to trigger the skill
-		AgentTaskRequest request = AgentTaskRequest.builder("test UPPERCASE conversion", null).build();
-		AgentResponse response = this.agentClient.call(request);
+		Message request = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("test UPPERCASE conversion")))
+			.build();
+		Message response = this.agentClient.sendMessage(request);
 
 		assertThat(response).isNotNull();
-		assertThat(response.getText()).isNotNull();
-		assertThat(response.getText()).isEqualTo("TEST UPPERCASE CONVERSION");
+		String responseText = MessageUtils.extractText(response.parts());
+		assertThat(responseText).isNotNull();
+		assertThat(responseText).isEqualTo("TEST UPPERCASE CONVERSION");
 	}
 
 	/**
@@ -236,12 +260,16 @@ class A2AClientServerIntegrationTests {
 	@Test
 	void testEmptyMessage() {
 		try {
-			AgentTaskRequest request = AgentTaskRequest.builder("", null).build();
-			AgentResponse response = this.agentClient.call(request);
+			Message request = Message.builder()
+				.role(Message.Role.USER)
+				.parts(List.of(new TextPart("")))
+				.build();
+			Message response = this.agentClient.sendMessage(request);
 
 			assertThat(response).isNotNull();
-			assertThat(response.getText()).isNotNull();
-			assertThat(response.getText()).contains("Echo:");
+			String responseText = MessageUtils.extractText(response.parts());
+			assertThat(responseText).isNotNull();
+			assertThat(responseText).contains("Echo:");
 		}
 		catch (Exception e) {
 			// Accept failure if ChatClient is not available (no OPENAI_API_KEY)
@@ -251,26 +279,30 @@ class A2AClientServerIntegrationTests {
 	}
 
 	/**
-	 * Tests request with task description.
+	 * Tests request with message content.
 	 *
 	 * <p>
 	 * This test verifies:
 	 * <ul>
-	 * <li>AgentTaskRequest with goal/description is handled correctly</li>
+	 * <li>Message with text content is handled correctly</li>
 	 * <li>Response contains the expected content</li>
 	 * </ul>
 	 */
 	@Test
 	void testRequestWithTaskDescription() {
-		AgentTaskRequest request = AgentTaskRequest.builder("Hello World", null).build();
-		AgentResponse response = this.agentClient.call(request);
+		Message request = Message.builder()
+			.role(Message.Role.USER)
+			.parts(List.of(new TextPart("Hello World")))
+			.build();
+		Message response = this.agentClient.sendMessage(request);
 
 		assertThat(response).isNotNull();
-		assertThat(response.getText()).isNotNull();
-		assertThat(response.getText()).contains("Echo:");
+		String responseText = MessageUtils.extractText(response.parts());
+		assertThat(responseText).isNotNull();
+		assertThat(responseText).contains("Echo:");
 		// The LLM may format with spaces, just check it contains both words
-		assertThat(response.getText()).contains("Hello");
-		assertThat(response.getText()).contains("World");
+		assertThat(responseText).contains("Hello");
+		assertThat(responseText).contains("World");
 	}
 
 }

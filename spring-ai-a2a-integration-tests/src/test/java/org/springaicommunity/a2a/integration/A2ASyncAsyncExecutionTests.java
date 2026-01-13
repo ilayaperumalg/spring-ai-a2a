@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -67,7 +67,7 @@ class A2ASyncAsyncExecutionTests {
 	private static final String AGENT_URL = "http://localhost:" + TEST_PORT + "/a2a";
 
 	@Autowired
-	private A2AAgentModel agentExecutor;
+	private A2AExecutor agentExecutor;
 
 	private WebTestClient webTestClient;
 

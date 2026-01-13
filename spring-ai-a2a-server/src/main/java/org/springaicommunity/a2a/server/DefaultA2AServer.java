@@ -31,7 +31,7 @@ import io.a2a.spec.TaskStatus;
 import io.a2a.spec.TextPart;
 
 import org.springaicommunity.a2a.core.A2AEndpoint;
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -60,7 +60,7 @@ import reactor.core.publisher.Sinks;
  * local agent (via direct method calls) and as a remote agent (via HTTP endpoints).
  *
  * <p>
- * The server delegates task execution to {@link A2AAgentModel} and manages the
+ * The server delegates task execution to {@link A2AExecutor} and manages the
  * protocol-level concerns like JSON-RPC formatting and task state management.
  *
  * @author Ilayaperumal Gopinathan
@@ -71,22 +71,22 @@ public class DefaultA2AServer implements A2AServer {
 
 	private final AgentCard agentCard;
 
-	private final A2AAgentModel agentModel;
+	private final A2AExecutor agentModel;
 
 	private final Map<String, Task> taskStore = new HashMap<>();
 
 	private final Map<String, Sinks.Many<ServerSentEvent<Map<String, Object>>>> taskSubscriptions = new HashMap<>();
 
 	/**
-	 * Create a new DefaultA2AServer with an A2AAgentModel.
+	 * Create a new DefaultA2AServer with an A2AExecutor.
 	 * <p>
-	 * This constructor accepts Spring AI's {@link A2AAgentModel} which combines
+	 * This constructor accepts Spring AI's {@link A2AExecutor} which combines
 	 * both the A2A SDK's AgentExecutor and Spring AI's AgentModel interfaces.
 	 * <p>
 	 * <strong>Example:</strong>
 	 *
 	 * <pre>
-	 * A2AAgentModel weatherAgent = A2AAgentModel.builder()
+	 * A2AExecutor weatherAgent = A2AExecutor.builder()
 	 *     .chatClient(chatClient)
 	 *     .systemPrompt("You are a weather assistant...")
 	 *     .build();
@@ -95,7 +95,7 @@ public class DefaultA2AServer implements A2AServer {
 	 * @param agentCard the agent card describing the agent's capabilities
 	 * @param agentModel the A2A agent model
 	 */
-	public DefaultA2AServer(AgentCard agentCard, A2AAgentModel agentModel) {
+	public DefaultA2AServer(AgentCard agentCard, A2AExecutor agentModel) {
 		this.agentCard = agentCard;
 		this.agentModel = agentModel;
 	}

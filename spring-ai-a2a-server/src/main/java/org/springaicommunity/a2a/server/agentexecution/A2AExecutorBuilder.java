@@ -29,7 +29,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
 
 /**
- * Builder interface for creating {@link A2AAgentModel} instances.
+ * Builder interface for creating {@link A2AExecutor} instances.
  *
  * <p>This builder provides a fluent API for configuring agents with varying levels of
  * customization. Most users will only need to provide a {@link ChatClient} and system prompt,
@@ -37,7 +37,7 @@ import org.springframework.ai.tool.ToolCallback;
  *
  * <p><strong>Simple Usage (90% of cases):</strong>
  * <pre>
- * A2AAgentModel weatherAgent = A2AAgentModel.builder()
+ * A2AExecutor weatherAgent = A2AExecutor.builder()
  *     .chatClient(ChatClient.builder(chatModel).build())
  *     .systemPrompt("You are a weather assistant...")
  *     .build();
@@ -46,7 +46,7 @@ import org.springframework.ai.tool.ToolCallback;
  * <p><strong>With Auto-Injected Tools:</strong>
  * <pre>
  * // Tools are auto-injected by Spring when using ChatModel + List&lt;ToolCallback&gt;
- * A2AAgentModel travelAgent = A2AAgentModel.builder()
+ * A2AExecutor travelAgent = A2AExecutor.builder()
  *     .chatModel(chatModel)  // ChatModel will auto-wire ToolCallbacks
  *     .tools(toolCallbacks)  // Include MCP tools, FileSystemTools, etc.
  *     .systemPrompt("You are a travel planner with access to file operations...")
@@ -55,7 +55,7 @@ import org.springframework.ai.tool.ToolCallback;
  *
  * <p><strong>Custom Response Generation:</strong>
  * <pre>
- * A2AAgentModel researchAgent = A2AAgentModel.builder()
+ * A2AExecutor researchAgent = A2AExecutor.builder()
  *     .chatClient(ChatClient.builder(chatModel).build())
  *     .systemPrompt("You are a research assistant...")
  *     .responseGenerator(userInput -> {
@@ -77,7 +77,7 @@ import org.springframework.ai.tool.ToolCallback;
  *
  * <p><strong>With Lifecycle Hooks:</strong>
  * <pre>
- * A2AAgentModel validatedAgent = A2AAgentModel.builder()
+ * A2AExecutor validatedAgent = A2AExecutor.builder()
  *     .chatClient(ChatClient.builder(chatModel).build())
  *     .systemPrompt("You are a content generator...")
  *     .beforeComplete((parts, context) -> {
@@ -98,10 +98,10 @@ import org.springframework.ai.tool.ToolCallback;
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
- * @see A2AAgentModel
- * @see DefaultA2AAgentModel
+ * @see A2AExecutor
+ * @see DefaultA2AExecutor
  */
-public interface A2AAgentModelBuilder {
+public interface A2AExecutorBuilder {
 
 	/**
 	 * Set the ChatClient for LLM interactions.
@@ -111,7 +111,7 @@ public interface A2AAgentModelBuilder {
 	 * @param chatClient the configured ChatClient (with or without tools)
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder chatClient(ChatClient chatClient);
+	A2AExecutorBuilder chatClient(ChatClient chatClient);
 
 	/**
 	 * Set the ChatModel and tools for LLM interactions.
@@ -126,7 +126,7 @@ public interface A2AAgentModelBuilder {
 	 * @param tools the list of tool callbacks (can be auto-injected by Spring)
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder chatModel(ChatModel chatModel, List<ToolCallback> tools);
+	A2AExecutorBuilder chatModel(ChatModel chatModel, List<ToolCallback> tools);
 
 	/**
 	 * Set the system prompt for the agent.
@@ -137,7 +137,7 @@ public interface A2AAgentModelBuilder {
 	 * @param systemPrompt the system prompt text
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder systemPrompt(String systemPrompt);
+	A2AExecutorBuilder systemPrompt(String systemPrompt);
 
 	/**
 	 * Set a custom response generator function.
@@ -155,7 +155,7 @@ public interface A2AAgentModelBuilder {
 	 * @param responseGenerator function that takes user input and returns response parts
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder responseGenerator(Function<String, List<Part<?>>> responseGenerator);
+	A2AExecutorBuilder responseGenerator(Function<String, List<Part<?>>> responseGenerator);
 
 	/**
 	 * Set a pre-completion hook that runs before artifacts are added to the task.
@@ -173,7 +173,7 @@ public interface A2AAgentModelBuilder {
 	 * parts
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder beforeComplete(BiFunction<List<Part<?>>, RequestContext, List<Part<?>>> beforeComplete);
+	A2AExecutorBuilder beforeComplete(BiFunction<List<Part<?>>, RequestContext, List<Part<?>>> beforeComplete);
 
 	/**
 	 * Set a post-completion hook that runs after the task is marked as complete.
@@ -190,7 +190,7 @@ public interface A2AAgentModelBuilder {
 	 * @param afterComplete consumer that takes the request context
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder afterComplete(Consumer<RequestContext> afterComplete);
+	A2AExecutorBuilder afterComplete(Consumer<RequestContext> afterComplete);
 
 	/**
 	 * Set an error handling hook.
@@ -211,10 +211,10 @@ public interface A2AAgentModelBuilder {
 	 * @param onError function that takes error and context, returns null
 	 * @return this builder
 	 */
-	A2AAgentModelBuilder onError(BiFunction<Exception, RequestContext, Void> onError);
+	A2AExecutorBuilder onError(BiFunction<Exception, RequestContext, Void> onError);
 
 	/**
-	 * Build the A2AAgentModel instance.
+	 * Build the A2AExecutor instance.
 	 * <p>
 	 * <strong>Validation:</strong>
 	 * <ul>
@@ -222,9 +222,9 @@ public interface A2AAgentModelBuilder {
 	 * {@link #chatModel(ChatModel, List)} must be called</li>
 	 * <li>{@link #systemPrompt(String)} must be called</li>
 	 * </ul>
-	 * @return the configured A2AAgentModel instance
+	 * @return the configured A2AExecutor instance
 	 * @throws IllegalStateException if required fields are not set
 	 */
-	A2AAgentModel build();
+	A2AExecutor build();
 
 }

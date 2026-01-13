@@ -16,25 +16,25 @@
 
 package org.springaicommunity.a2a.client;
 
+import io.a2a.spec.Message;
+import reactor.core.publisher.Flux;
+
 import org.springaicommunity.a2a.core.A2AEndpoint;
-import org.springaicommunity.agents.model.AgentModel;
-import org.springaicommunity.agents.model.StreamingAgentModel;
 
 /**
- * Interface for A2A (Agent-to-Agent) client implementations following the AgentModel pattern.
+ * Interface for A2A (Agent-to-Agent) client implementations using A2A SDK types directly.
  *
  * <p>
  * This interface defines the contract for communicating with remote A2A agents using
- * Spring AI-aligned task execution patterns. It extends {@link A2AEndpoint} for
- * agent metadata access, {@link AgentModel} for blocking execution, and
- * {@link StreamingAgentModel} for streaming execution.
+ * the A2A Java SDK Message types. It extends {@link A2AEndpoint} for agent metadata access
+ * and provides methods for both blocking and streaming message execution.
  *
  * <p>
  * Implementations of this interface handle:
  * <ul>
  * <li>Agent discovery and card retrieval</li>
- * <li>Blocking task execution via {@link AgentModel#call(org.springaicommunity.agents.model.AgentTaskRequest)}</li>
- * <li>Streaming execution with progress tracking via {@link StreamingAgentModel#stream(org.springaicommunity.agents.model.AgentTaskRequest)}</li>
+ * <li>Blocking message execution via {@link #sendMessage(Message)}</li>
+ * <li>Streaming execution with progress tracking via {@link #streamMessage(Message)}</li>
  * <li>Protocol-level communication (JSON-RPC, HTTP, etc.)</li>
  * </ul>
  *
@@ -42,19 +42,19 @@ import org.springaicommunity.agents.model.StreamingAgentModel;
  * <strong>Execution Patterns:</strong>
  *
  * <p>
- * <strong>Blocking Execution</strong> ({@link AgentModel#call(org.springaicommunity.agents.model.AgentTaskRequest)}):
+ * <strong>Blocking Execution</strong> ({@link #sendMessage(Message)}):
  * <ul>
  * <li>Synchronous, blocking API</li>
- * <li>Returns {@link org.springaicommunity.agents.model.AgentResponse} when complete</li>
+ * <li>Returns {@link Message} when complete</li>
  * <li>Best for simple queries that complete quickly</li>
- * <li>Follows Spring AI conventions</li>
+ * <li>Uses A2A SDK types directly</li>
  * </ul>
  *
  * <p>
- * <strong>Streaming Execution</strong> ({@link StreamingAgentModel#stream(org.springaicommunity.agents.model.AgentTaskRequest)}):
+ * <strong>Streaming Execution</strong> ({@link #streamMessage(Message)}):
  * <ul>
  * <li>Asynchronous, reactive API using Flux</li>
- * <li>Emits {@link org.springaicommunity.agents.model.AgentResponse} chunks with progress updates</li>
+ * <li>Emits {@link Message} chunks with progress updates</li>
  * <li>Best for long-running tasks requiring progress feedback</li>
  * <li>Supports task status tracking</li>
  * </ul>
@@ -68,11 +68,15 @@ import org.springaicommunity.agents.model.StreamingAgentModel;
  *     .agentUrl("http://localhost:10001/a2a")
  *     .build();
  *
+ * // Create a message
+ * Message request = Message.builder()
+ *     .role(Message.Role.USER)
+ *     .parts(List.of(new TextPart("What's the weather in San Francisco?")))
+ *     .build();
+ *
  * // Blocking execution
- * AgentResponse response = weatherAgent.call(
- *     AgentTaskRequest.of("What's the weather in San Francisco?")
- * );
- * System.out.println(response.getText());
+ * Message response = weatherAgent.sendMessage(request);
+ * System.out.println(MessageUtils.extractText(response.parts()));
  *
  * // Access agent metadata
  * AgentCard card = weatherAgent.getAgentCard();
@@ -83,26 +87,49 @@ import org.springaicommunity.agents.model.StreamingAgentModel;
  * <strong>Example - Streaming with Progress:</strong>
  *
  * <pre class="code">
- * // Streaming execution for long-running tasks
- * Flux&lt;AgentResponse&gt; stream = weatherAgent.stream(
- *     AgentTaskRequest.of("Analyze weather patterns for the past year")
- * );
+ * // Create a message
+ * Message request = Message.builder()
+ *     .role(Message.Role.USER)
+ *     .parts(List.of(new TextPart("Analyze weather patterns for the past year")))
+ *     .build();
  *
- * stream.subscribe(response -&gt; {
- *     System.out.println("Response: " + response.getText());
+ * // Streaming execution for long-running tasks
+ * Flux&lt;Message&gt; stream = weatherAgent.streamMessage(request);
+ *
+ * stream.subscribe(message -&gt; {
+ *     System.out.println("Response: " + MessageUtils.extractText(message.parts()));
  * });
  * </pre>
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
  * @see A2AEndpoint
- * @see AgentModel
- * @see StreamingAgentModel
- * @see org.springaicommunity.agents.model.AgentResponse
+ * @see Message
  */
-public interface A2AClient extends AgentModel, StreamingAgentModel, A2AEndpoint {
+public interface A2AClient extends A2AEndpoint {
 
-	// Note: call() and stream() methods are inherited from AgentModel and StreamingAgentModel
+	/**
+	 * Send a message to the remote A2A agent and wait for the complete response.
+	 *
+	 * <p>This is a synchronous, blocking operation that waits for the agent to
+	 * complete processing and return the full response message.
+	 *
+	 * @param message the message to send (typically with USER role)
+	 * @return the response message from the agent
+	 * @throws RuntimeException if the request fails or times out
+	 */
+	Message sendMessage(Message message);
+
+	/**
+	 * Send a message to the remote A2A agent and stream responses.
+	 *
+	 * <p>This is an asynchronous, reactive operation that emits response messages
+	 * as they become available. Useful for long-running tasks with progress updates.
+	 *
+	 * @param message the message to send (typically with USER role)
+	 * @return a Flux of response messages from the agent
+	 */
+	Flux<Message> streamMessage(Message message);
 
 	/**
 	 * Check if this agent client is available and ready to process tasks.
@@ -113,7 +140,6 @@ public interface A2AClient extends AgentModel, StreamingAgentModel, A2AEndpoint 
 	 *
 	 * @return true if the agent is available, false otherwise
 	 */
-	@Override
 	default boolean isAvailable() {
 		return getAgentCard() != null;
 	}

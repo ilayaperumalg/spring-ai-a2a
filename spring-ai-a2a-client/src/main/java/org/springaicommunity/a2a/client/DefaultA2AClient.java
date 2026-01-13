@@ -17,8 +17,6 @@
 package org.springaicommunity.a2a.client;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -36,26 +34,18 @@ import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
 import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.Message;
-import io.a2a.spec.Part;
 import io.a2a.spec.TaskState;
-import io.a2a.spec.TextPart;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
 import org.springaicommunity.a2a.core.MessageUtils;
-import org.springaicommunity.agents.model.AgentGeneration;
-import org.springaicommunity.agents.model.AgentGenerationMetadata;
-import org.springaicommunity.agents.model.AgentResponse;
-import org.springaicommunity.agents.model.AgentResponseMetadata;
-import org.springaicommunity.agents.model.AgentTaskRequest;
 import org.springframework.util.Assert;
 
 /**
  * Default implementation of {@link A2AClient} for communicating with remote A2A agents.
  *
- * <p>This client provides Spring AI-aligned task execution patterns following the
- * {@link org.springaicommunity.agents.model.AgentModel} interface. It wraps the A2A Java SDK
- * Client to enable both blocking and streaming execution patterns.
+ * <p>This client uses A2A Java SDK types directly for message-based communication.
+ * It wraps the A2A Java SDK Client to enable both blocking and streaming execution patterns.
  *
  * <p>The client automatically discovers agent capabilities by fetching the agent card from
  * the remote agent's endpoint during initialization. This information is used to configure
@@ -69,34 +59,37 @@ import org.springframework.util.Assert;
  *     .timeout(Duration.ofSeconds(30))
  *     .build();
  *
+ * // Create a message
+ * Message request = Message.builder()
+ *     .role(Message.Role.USER)
+ *     .parts(List.of(new TextPart("What's the weather in San Francisco?")))
+ *     .build();
+ *
  * // Execute task (blocking)
- * AgentResponse response = weatherAgent.call(
- *     AgentTaskRequest.of("What's the weather in San Francisco?")
- * );
- * System.out.println(response.getText());
+ * Message response = weatherAgent.sendMessage(request);
+ * System.out.println(MessageUtils.extractText(response.parts()));
  * </pre>
  *
  * <p><strong>Example - Streaming Execution:</strong>
  * <pre class="code">
- * // Stream task with progress updates
- * Flux&lt;StreamingAgentResponse&gt; stream = weatherAgent.stream(
- *     AgentTaskRequest.of("Analyze weather patterns for the past year")
- * );
+ * // Create a message
+ * Message request = Message.builder()
+ *     .role(Message.Role.USER)
+ *     .parts(List.of(new TextPart("Analyze weather patterns for the past year")))
+ *     .build();
  *
- * stream.subscribe(chunk -> {
- *     switch (chunk.getTaskState()) {
- *         case WORKING -> System.out.println("Progress: " + chunk.getProgressUpdate().getMessage());
- *         case COMPLETED -> System.out.println("Result: " + chunk.getResponse().getText());
- *         case FAILED -> System.err.println("Error: " + chunk.getResponse().getText());
- *     }
+ * // Stream task with progress updates
+ * Flux&lt;Message&gt; stream = weatherAgent.streamMessage(request);
+ *
+ * stream.subscribe(message -> {
+ *     System.out.println("Response: " + MessageUtils.extractText(message.parts()));
  * });
  * </pre>
  *
  * @author Ilayaperumal Gopinathan
  * @since 0.1.0
  * @see A2AClient
- * @see AgentTaskRequest
- * @see AgentResponse
+ * @see Message
  */
 public final class DefaultA2AClient implements A2AClient {
 
@@ -144,29 +137,25 @@ public final class DefaultA2AClient implements A2AClient {
 	}
 
 	@Override
-	public AgentResponse call(AgentTaskRequest request) {
-		Assert.notNull(request, "request cannot be null");
-
-		// Convert AgentTaskRequest to A2A SDK Message
-		Message a2aMessage = convertToA2AMessage(request);
+	public Message sendMessage(Message message) {
+		Assert.notNull(message, "message cannot be null");
 
 		// Use CountDownLatch to block until response is received
 		CountDownLatch latch = new CountDownLatch(1);
-		AtomicReference<AgentResponse> responseRef = new AtomicReference<>();
+		AtomicReference<Message> responseRef = new AtomicReference<>();
 		AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
 		// Create event consumers
 		List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of((event, card) -> {
 			if (event instanceof MessageEvent messageEvent) {
-				// Convert A2A Message to AgentResponse
-				AgentResponse response = convertToAgentResponse(messageEvent.getMessage());
-				responseRef.set(response);
+				// Store the message directly
+				responseRef.set(messageEvent.getMessage());
 				latch.countDown();
 			}
 			else if (event instanceof TaskEvent taskEvent) {
-				// For task completion, extract response from artifacts
+				// For task completion, extract message from artifacts
 				if (isTaskComplete(taskEvent)) {
-					AgentResponse response = convertTaskEventToAgentResponse(taskEvent);
+					Message response = extractMessageFromTaskEvent(taskEvent);
 					responseRef.set(response);
 					latch.countDown();
 				}
@@ -191,7 +180,7 @@ public final class DefaultA2AClient implements A2AClient {
 			.streamingErrorHandler(errorHandler)
 			.build();
 
-		client.sendMessage(a2aMessage);
+		client.sendMessage(message);
 
 		try {
 			// Wait for response with timeout
@@ -211,7 +200,7 @@ public final class DefaultA2AClient implements A2AClient {
 		}
 
 		// Return the response
-		AgentResponse response = responseRef.get();
+		Message response = responseRef.get();
 		if (response == null) {
 			throw new RuntimeException("No response received from A2A agent at: " + this.agentUrl);
 		}
@@ -220,29 +209,20 @@ public final class DefaultA2AClient implements A2AClient {
 	}
 
 	@Override
-	public Flux<AgentResponse> stream(AgentTaskRequest request) {
-		Assert.notNull(request, "request cannot be null");
-
-		// Convert AgentTaskRequest to A2A SDK Message
-		Message a2aMessage = convertToA2AMessage(request);
+	public Flux<Message> streamMessage(Message message) {
+		Assert.notNull(message, "message cannot be null");
 
 		// Create a sink for streaming responses
-		Sinks.Many<AgentResponse> sink = Sinks.many().unicast().onBackpressureBuffer();
-
-		// Track task state
-		AtomicReference<io.a2a.spec.TaskState> currentTaskState = new AtomicReference<>(TaskState.SUBMITTED);
+		Sinks.Many<Message> sink = Sinks.many().unicast().onBackpressureBuffer();
 
 		// Create event consumers for streaming
 		List<BiConsumer<ClientEvent, AgentCard>> consumers = List.of((event, card) -> {
 			if (event instanceof TaskEvent taskEvent) {
-				// Update task state
-				if (taskEvent.getTask().status() != null && taskEvent.getTask().status().state() != null) {
-					currentTaskState.set(taskEvent.getTask().status().state());
+				// Extract message from task event
+				Message response = extractMessageFromTaskEvent(taskEvent);
+				if (response != null) {
+					sink.tryEmitNext(response);
 				}
-
-				// Convert TaskEvent to AgentResponse
-				AgentResponse response = convertTaskEventToAgentResponse(taskEvent);
-				sink.tryEmitNext(response);
 
 				// Complete stream on task completion
 				if (isTaskComplete(taskEvent)) {
@@ -250,9 +230,8 @@ public final class DefaultA2AClient implements A2AClient {
 				}
 			}
 			else if (event instanceof MessageEvent messageEvent) {
-				// Handle message event as completed response
-				AgentResponse response = convertToAgentResponse(messageEvent.getMessage());
-				sink.tryEmitNext(response);
+				// Handle message event
+				sink.tryEmitNext(messageEvent.getMessage());
 				sink.tryEmitComplete();
 			}
 		});
@@ -272,81 +251,25 @@ public final class DefaultA2AClient implements A2AClient {
 			.streamingErrorHandler(errorHandler)
 			.build();
 
-		client.sendMessage(a2aMessage);
+		client.sendMessage(message);
 
 		return sink.asFlux();
 	}
 
 	/**
-	 * Convert AgentTaskRequest to A2A SDK Message.
+	 * Extract Message from TaskEvent artifacts.
 	 */
-	private Message convertToA2AMessage(AgentTaskRequest request) {
-		// Extract goal as text part
-		List<Part<?>> parts = new ArrayList<>();
-		parts.add(new TextPart(request.goal()));
-
-		// Build message with context
-		Message.Builder messageBuilder = Message.builder()
-			.role(Message.Role.USER)
-			.parts(parts);
-
-		// Note: A2A SDK Message doesn't directly support contextId/taskId in the Message itself
-		// These are typically handled at the protocol level
-		// Options (like A2AAgentOptions) are available via request.options() if needed
-
-		return messageBuilder.build();
-	}
-
-	/**
-	 * Convert A2A SDK Message to AgentResponse.
-	 */
-	private AgentResponse convertToAgentResponse(Message message) {
-		// Extract text from message parts
-		String responseText = MessageUtils.extractText(message.parts());
-
-		// Build AgentGeneration
-		AgentGeneration generation = new AgentGeneration(responseText);
-
-		// Build AgentResponse
-		return AgentResponse.builder()
-			.results(List.of(generation))
-			.metadata(new AgentResponseMetadata())
-			.build();
-	}
-
-	/**
-	 * Convert TaskEvent to AgentResponse (for final result).
-	 */
-	private AgentResponse convertTaskEventToAgentResponse(TaskEvent taskEvent) {
-		// Extract response text from task artifacts
-		String responseText = "";
+	private Message extractMessageFromTaskEvent(TaskEvent taskEvent) {
+		// Extract message from task artifacts if available
 		if (taskEvent.getTask().artifacts() != null && !taskEvent.getTask().artifacts().isEmpty()) {
-			List<Part<?>> parts = taskEvent.getTask().artifacts().get(0).parts();
-			responseText = MessageUtils.extractText(parts);
+			// Use the first artifact as the response message
+			// Note: A2A spec uses AGENT role for agent responses
+			return Message.builder()
+				.role(Message.Role.AGENT)
+				.parts(taskEvent.getTask().artifacts().get(0).parts())
+				.build();
 		}
-
-		// Determine status based on task state
-		String status = "SUCCESS";
-		String finishReason = "COMPLETED";
-		TaskState taskState = taskEvent.getTask().status() != null ? taskEvent.getTask().status().state() : null;
-		if (taskState == TaskState.FAILED) {
-			status = "FAILED";
-			finishReason = "ERROR";
-		}
-		else if (taskState == TaskState.CANCELED) {
-			status = "CANCELED";
-			finishReason = "CANCELED";
-		}
-
-		// Build AgentGeneration with metadata
-		AgentGeneration generation = new AgentGeneration(responseText,
-				new AgentGenerationMetadata(finishReason, null));
-
-		// Build AgentResponse
-		return AgentResponse.builder()
-			.results(List.of(generation))
-			.metadata(new AgentResponseMetadata())
-			.build();
+		return null;
 	}
 
 	/**

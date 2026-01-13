@@ -18,7 +18,7 @@ package org.springaicommunity.a2a.integration;
 
 import java.util.List;
 
-import org.springaicommunity.a2a.server.agentexecution.A2AAgentModel;
+import org.springaicommunity.a2a.server.agentexecution.A2AExecutor;
 import io.a2a.spec.AgentCapabilities;
 import io.a2a.spec.AgentCard;
 import io.a2a.spec.AgentInterface;
@@ -63,16 +63,16 @@ public class TestA2AApplication {
 	}
 
 	/**
-	 * Register the test agent using the A2AAgentModel builder pattern.
+	 * Register the test agent using the A2AExecutor builder pattern.
 	 * <p>
 	 * This demonstrates the new builder-based approach for creating agents.
-	 * The agent is created declaratively using A2AAgentModel.builder().
+	 * The agent is created declaratively using A2AExecutor.builder().
 	 * @param chatModel the chat model for LLM interactions
-	 * @return A2AAgentModel test agent
+	 * @return A2AExecutor test agent
 	 */
 	@Bean
-	public A2AAgentModel agentExecutor(org.springframework.ai.chat.model.ChatModel chatModel) {
-		return A2AAgentModel.builder()
+	public A2AExecutor agentExecutor(org.springframework.ai.chat.model.ChatModel chatModel) {
+		return A2AExecutor.builder()
 			.chatClient(ChatClient.builder(chatModel).build())
 			.systemPrompt(getSystemPrompt())
 			.build();
@@ -157,11 +157,11 @@ public class TestA2AApplication {
 	/**
 	 * Create A2AServer that exposes the agent via HTTP endpoints.
 	 * @param agentCard the agent card
-	 * @param agentExecutor the agent executor (A2AAgentModel)
+	 * @param agentExecutor the agent executor (A2AExecutor)
 	 * @return A2AServer instance
 	 */
 	@Bean
-	public A2AServer a2aAgentServer(AgentCard agentCard, A2AAgentModel agentExecutor) {
+	public A2AServer a2aAgentServer(AgentCard agentCard, A2AExecutor agentExecutor) {
 		return new DefaultA2AServer(agentCard, agentExecutor);
 	}
 
