@@ -1,29 +1,81 @@
-# Spring AI A2A (Agent-to-Agent) Protocol Support
+# Spring AI A2A
 
-[![Maven Central](https://img.shields.io/maven-central/v/org.springaicommunity/spring-ai-a2a-parent.svg)](https://search.maven.org/artifact/org.springaicommunity/spring-ai-a2a-parent)
-[![Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
-> **Part of the [Spring AI Community](https://github.com/spring-ai-community)** - Community-driven Spring AI integrations and extensions
-
-This project provides Spring AI integration with the [A2A (Agent-to-Agent) Protocol](https://a2a-protocol.org), enabling AI agents built with Spring AI to communicate with other agents across different platforms and programming languages.
+Spring AI integration for the Agent-to-Agent (A2A) Protocol, enabling composable AI agents that communicate via the A2A protocol specification.
 
 ## Overview
 
-The A2A protocol is an open standard that enables AI agents to communicate and collaborate seamlessly. This Spring AI Community project makes it as easy to build multi-agent systems as it is to build REST APIs with Spring Boot.
+Spring AI A2A provides Spring Boot integration for building AI agents that can communicate with each other using the [A2A Protocol](https://a2a.anthropic.com/). The project uses the [A2A Java SDK](https://github.com/anthropics/a2a-java-sdk) directly for maximum compatibility and minimal abstraction overhead.
+
+### Key Features
+
+- **A2A Protocol Support**: Full implementation of the A2A protocol for agent-to-agent communication
+- **Spring Boot Integration**: Auto-configuration and Spring Boot starters for rapid development
+- **Direct A2A SDK Usage**: Built directly on the A2A Java SDK without intermediate abstraction layers
+- **JSON-RPC Server**: Exposes agents via HTTP/JSON-RPC endpoints
+- **Client Library**: Call remote A2A agents from your Spring applications
+- **Spring AI Integration**: Seamless integration with Spring AI ChatClient for LLM interactions
+
+## Architecture
+
+### Core Components
+
+The project consists of several modules:
+
+```
+spring-ai-a2a/
+├── spring-ai-a2a-core/           # Core abstractions and A2A client
+├── spring-ai-a2a-server/         # A2A server implementation and agent execution
+├── spring-ai-a2a-client/         # Client for calling remote A2A agents
+├── spring-boot-starter-spring-ai-a2a/  # Spring Boot auto-configuration
+├── spring-ai-a2a-examples/       # Example applications
+└── spring-ai-a2a-integration-tests/  # Integration tests
+```
+
+### Agent Execution Model
+
+Agents implement the `A2AExecutor` interface, which extends the A2A SDK's `AgentExecutor`:
+
+```java
+public interface A2AExecutor extends AgentExecutor {
+    ChatClient getChatClient();
+    String getSystemPrompt();
+
+    Message executeSynchronous(Message request);
+    Flux<Message> executeStreaming(Message request);
+}
+```
+
+### Message Types
+
+The project uses A2A SDK message types directly:
+
+- `io.a2a.spec.Message` - Messages between agents
+- `io.a2a.spec.Part` - Message parts (text, data, etc.)
+- `io.a2a.spec.TextPart` - Text message parts
+- `io.a2a.spec.AgentCard` - Agent metadata and capabilities
 
 ## Quick Start
 
-This library supports two use cases:
-1. **Building A2A Agent Servers** - Expose your Spring AI agent via A2A protocol endpoints
-2. **Calling Remote A2A Agents** - Connect to and communicate with other A2A agents
+### Prerequisites
 
-Choose the approach that fits your needs:
+- Java 17 or later
+- Maven 3.8+
+- OpenAI API key (for examples)
 
-### Option A: Building an A2A Agent Server (Recommended - Using Spring Boot Starter)
+### Building the Project
 
-The easiest way to build an A2A agent server is using the Spring Boot Starter:
+```bash
+# Clone the repository
+git clone https://github.com/your-org/spring-ai-a2a.git
+cd spring-ai-a2a
 
-#### 1. Add the Starter Dependency
+# Build all modules
+mvn clean install -DskipTests
+```
+
+### Creating an A2A Agent
+
+1. **Add the Spring Boot starter dependency:**
 
 ```xml
 <dependency>
@@ -33,493 +85,306 @@ The easiest way to build an A2A agent server is using the Spring Boot Starter:
 </dependency>
 ```
 
-#### 2. Configure Your Agent
+2. **Create an agent executor:**
 
-Add to your `application.yml`:
+```java
+@Component
+public class MyAgent extends DefaultA2AExecutor {
+
+    public MyAgent(ChatModel chatModel) {
+        super(ChatClient.builder(chatModel).build());
+    }
+
+    @Override
+    public String getSystemPrompt() {
+        return "You are a helpful assistant that can answer questions.";
+    }
+}
+```
+
+3. **Configure agent metadata:**
+
+```java
+@Bean
+public AgentCard agentCard() {
+    return AgentCard.builder()
+        .name("My Agent")
+        .description("A helpful AI assistant")
+        .version("1.0.0")
+        .protocolVersion("0.1.0")
+        .capabilities(AgentCapabilities.builder()
+            .streaming(true)
+            .build())
+        .defaultInputModes(List.of("text"))
+        .defaultOutputModes(List.of("text"))
+        .supportedInterfaces(List.of(
+            new AgentInterface("JSONRPC", "http://localhost:8080/a2a")
+        ))
+        .build();
+}
+```
+
+4. **Configure the server (application.yml):**
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+```
+
+5. **Run your agent:**
+
+```bash
+mvn spring-boot:run
+```
+
+Your agent is now available at `http://localhost:8080/a2a`
+
+### Calling an Agent
+
+Use the A2A client to call remote agents:
+
+```java
+@Component
+public class MyService {
+
+    private final A2AClient weatherAgent;
+
+    public MyService(@Value("${weather.agent.url}") String weatherAgentUrl) {
+        this.weatherAgent = DefaultA2AClient.builder()
+            .agentUrl(weatherAgentUrl)
+            .timeout(Duration.ofSeconds(30))
+            .build();
+    }
+
+    public String getWeather(String location) {
+        Message request = Message.builder()
+            .role(Message.Role.USER)
+            .parts(List.of(new TextPart("What's the weather in " + location + "?")))
+            .build();
+
+        Message response = weatherAgent.sendMessage(request);
+        return MessageUtils.extractText(response.parts());
+    }
+}
+```
+
+## Examples
+
+The project includes several example applications demonstrating different A2A patterns:
+
+### Airbnb Planner Multi-Agent Example
+
+Location: `spring-ai-a2a-examples/airbnb-planner-multiagent/`
+
+Demonstrates a multi-agent system where a travel planning agent delegates to specialized agents:
+
+- **Travel Planner Agent** (port 8080): Main orchestration agent
+- **Accommodation Agent** (port 10002): Provides hotel recommendations
+
+**Running the example:**
+
+```bash
+# Terminal 1: Start accommodation agent
+cd spring-ai-a2a-examples/airbnb-planner-multiagent/accommodation-agent
+mvn spring-boot:run
+
+# Terminal 2: Start travel planner agent
+cd spring-ai-a2a-examples/airbnb-planner-multiagent/travel-planner-agent
+mvn spring-boot:run
+
+# Terminal 3: Test the agent
+curl -X POST http://localhost:8080/a2a \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "sendMessage",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{"text": "Plan a 3-day trip to Tokyo"}]
+      }
+    },
+    "id": 1
+  }'
+```
+
+## Configuration
+
+### Agent Server Configuration
+
+Configure the A2A server in `application.yml`:
 
 ```yaml
 spring:
   ai:
     a2a:
+      server:
+        enabled: true
+        base-path: /a2a              # Default: /a2a
       agent:
-        name: Weather Agent
-        description: Provides weather information for any location
+        name: "My Agent"
+        description: "Agent description"
+        version: "1.0.0"
+        protocol-version: "0.1.0"
+        capabilities:
+          streaming: true
+          push-notifications: false
+          state-transition-history: false
+        default-input-modes:
+          - text
+        default-output-modes:
+          - text
 ```
 
-#### 3. Implement Your Agent Logic
+### ChatModel Configuration
+
+The project supports any Spring AI ChatModel. Example with OpenAI:
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+```
+
+## API Reference
+
+### A2AExecutor
+
+Main interface for implementing agents:
 
 ```java
-@Component
-public class WeatherAgentExecutor extends DefaultSpringAIAgentExecutor {
+public interface A2AExecutor extends AgentExecutor {
+    // Build an agent executor
+    static A2AExecutorBuilder builder() { ... }
 
-    public WeatherAgentExecutor(ChatClient chatClient) {
-        super(chatClient);
-    }
-
-    @Override
-    public String getSystemPrompt() {
-        return "You are a helpful weather assistant.";
-    }
-
-    @Override
-    public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-        String response = getChatClient().prompt()
-            .system(getSystemPrompt())
-            .user(userInput)
-            .call()
-            .content();
-        return List.of(new TextPart(response));
-    }
-}
-```
-
-That's it! Your agent is now available at `http://localhost:8080/a2a` with automatic configuration.
-
-See the [Spring Boot Starter README](spring-boot-starter-spring-ai-a2a/README.md) for more configuration options.
-
-### Option B: Building an A2A Agent Server (Manual Configuration)
-
-If you need more control, you can manually configure your agent:
-
-#### 1. Add Dependencies
-
-```xml
-<dependency>
-    <groupId>org.springaicommunity</groupId>
-    <artifactId>spring-ai-a2a-core</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-</dependency>
-<dependency>
-    <groupId>org.springaicommunity</groupId>
-    <artifactId>spring-ai-a2a-server</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-</dependency>
-```
-
-#### 2. Create an A2A Agent
-
-```java
-@Configuration
-public class WeatherAgentConfig {
-
-    @Bean
-    public AgentCard agentCard() {
-        return AgentCard.builder()
-            .name("Weather Assistant")
-            .description("Provides weather information")
-            .version("1.0.0")
-            .protocolVersion("0.1.0")
-            .build();
-    }
-
-    @Bean
-    public AgentExecutor agentExecutor(ChatClient chatClient) {
-        return new DefaultSpringAIAgentExecutor() {
-            @Override
-            public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-                String response = chatClient.prompt()
-                    .user(userInput)
-                    .call()
-                    .content();
-                return List.of(new TextPart(response));
-            }
-        };
-    }
-
-    @Bean
-    public A2AAgentServer agentServer(AgentCard agentCard, AgentExecutor agentExecutor) {
-        return new DefaultA2AAgentServer(agentCard, agentExecutor);
-    }
-}
-```
-
-That's it! Your agent is now available at `http://localhost:8080/a2a`
-
-### Option C: Calling Remote A2A Agents (Client-Only Applications)
-
-If you only need to **call** other A2A agents (not expose your own), you only need the core dependency:
-
-#### 1. Add Core Dependency
-
-```xml
-<dependency>
-    <groupId>org.springaicommunity</groupId>
-    <artifactId>spring-ai-a2a-core</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-</dependency>
-```
-
-#### 2. Create and Use A2A Clients
-
-```java
-@Service
-public class MyService {
-
-    public String getWeather(String city) {
-        // Create A2A agent client
-        A2AAgent weatherAgent = DefaultA2AAgentClient.builder()
-            .agentUrl("http://weather-agent:8080/a2a")
-            .build();
-
-        // Send message to agent
-        A2ARequest request = A2ARequest.of("What's the weather in " + city + "?");
-        A2AResponse response = weatherAgent.sendMessage(request);
-
-        // Extract text from response
-        return response.getParts().stream()
-            .filter(part -> part instanceof TextPart)
-            .map(part -> ((TextPart) part).text())
-            .collect(Collectors.joining());
-    }
-}
-```
-
-## When to Use What
-
-| Your Use Case | Dependency | Description |
-|--------------|------------|-------------|
-| **Building an A2A agent server** | `spring-boot-starter-spring-ai-a2a` | Use the Spring Boot Starter for auto-configuration |
-| **Building a server with manual config** | `spring-ai-a2a-core` + `spring-ai-a2a-server` | For advanced scenarios requiring custom configuration |
-| **Only calling other agents (client)** | `spring-ai-a2a-core` | Create `DefaultA2AAgentClient` instances programmatically |
-| **Agent orchestration (server + client)** | `spring-boot-starter-spring-ai-a2a` | Use starter for server, create clients programmatically |
-
-## Module Structure
-
-```
-spring-ai-a2a/
-├── spring-ai-a2a-core/                    # Core interfaces and domain models
-│   ├── A2AAgent interface                 # Base interface for agents
-│   ├── A2AAgentClient interface           # Client for calling remote agents
-│   ├── DefaultA2AAgentClient              # Client implementation
-│   └── A2ARequest and A2AResponse         # Request/response models
-│
-├── spring-ai-a2a-server/                  # Server-side support
-│   ├── AgentExecutorLifecycle interface   # Simplified lifecycle hooks
-│   ├── SpringAIAgentExecutor interface    # Spring AI adapter
-│   ├── DefaultSpringAIAgentExecutor       # Base implementation
-│   └── DefaultA2AAgentServer              # Server implementation
-│
-├── spring-boot-starter-spring-ai-a2a/     # Spring Boot Starter
-│   ├── A2AAutoConfiguration               # Auto-configuration
-│   └── A2AProperties                      # Configuration properties
-│
-└── spring-ai-a2a-examples/                # Examples
-    └── airbnb-planner-multiagent/         # Multi-agent orchestration example
-```
-
-## Core Concepts
-
-### AgentExecutorLifecycle
-
-The `AgentExecutorLifecycle` interface provides simplified lifecycle hooks for agent execution:
-
-```java
-public interface AgentExecutorLifecycle {
-    // Process the user request and return response content
-    List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) throws Exception;
-
-    // Handle task cancellation (optional)
-    default void onCancel(RequestContext context, TaskUpdater taskUpdater) throws JSONRPCError {
-        taskUpdater.cancel();
-    }
-
-    // Handle execution errors (optional)
-    default void onError(Exception error, RequestContext context, TaskUpdater taskUpdater) {
-        taskUpdater.fail();
-    }
-
-    // Execute synchronously and return response
-    A2AResponse executeSynchronous(A2ARequest request);
-}
-```
-
-### SpringAIAgentExecutor and DefaultSpringAIAgentExecutor
-
-**`SpringAIAgentExecutor`** is an adapter interface that combines both the A2A SDK's `AgentExecutor` and Spring AI's `AgentExecutorLifecycle` interfaces, along with `ChatClient` integration:
-
-```java
-public interface SpringAIAgentExecutor extends AgentExecutor, AgentExecutorLifecycle {
+    // Get the ChatClient for LLM interactions
     ChatClient getChatClient();
+
+    // Get the system prompt for the agent
     String getSystemPrompt();
+
+    // Generate response from user input
+    default List<Part<?>> generateResponse(String userInput) { ... }
+
+    // Execute synchronously
+    Message executeSynchronous(Message request);
+
+    // Execute with streaming
+    default Flux<Message> executeStreaming(Message request) { ... }
 }
 ```
 
-**`DefaultSpringAIAgentExecutor`** is the base implementation that provides:
-- Adapter logic bridging A2A SDK's low-level `execute(RequestContext, EventQueue)` to Spring AI's simplified lifecycle hooks
-- Task lifecycle management (submit, start, complete)
-- ChatClient integration for LLM interactions
+### A2AClient
 
-Example implementation:
+Client for calling remote A2A agents:
 
 ```java
-public class MyAgentExecutor extends DefaultSpringAIAgentExecutor {
+public interface A2AClient {
+    // Get agent metadata
+    AgentCard getAgentCard();
 
-    public MyAgentExecutor(ChatClient chatClient) {
-        super(chatClient);
-    }
+    // Send a message to the agent
+    Message sendMessage(Message request);
 
-    @Override
-    public String getSystemPrompt() {
-        return "You are a helpful assistant that...";
-    }
-
-    @Override
-    public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-        String response = getChatClient().prompt()
-            .system(getSystemPrompt())
-            .user(userInput)
-            .call()
-            .content();
-        return List.of(new TextPart(response));
-    }
+    // Send a message with streaming response
+    Flux<Message> streamMessage(Message request);
 }
 ```
 
-This design eliminates the need for separate adapter classes - `SpringAIAgentExecutor` itself serves as the adapter, making Spring AI agents work seamlessly with the A2A protocol.
+### A2AServer
 
-### Client API
-
-The `A2AAgent` interface provides a unified API for calling both local and remote agents:
+Server that exposes agents via HTTP/JSON-RPC:
 
 ```java
-// Create agent client
-A2AAgent agent = DefaultA2AAgentClient.builder()
-    .agentUrl("http://agent-url:8080/a2a")
-    .build();
+public interface A2AServer {
+    // Get agent metadata
+    AgentCard getAgentCard();
 
-// Synchronous call
-A2ARequest request = A2ARequest.of("your message");
-A2AResponse response = agent.sendMessage(request);
-
-// Extract text from response
-String text = response.getParts().stream()
-    .filter(part -> part instanceof TextPart)
-    .map(part -> ((TextPart) part).text())
-    .collect(Collectors.joining());
-
-// Streaming call
-Flux<A2AResponse> stream = agent.sendMessageStreaming(request);
-```
-
-## Integration with Spring AI Features
-
-### ChatClient Integration
-
-A2A agents work seamlessly with Spring AI's ChatClient:
-
-```java
-public class ResearchAgentExecutor extends DefaultSpringAIAgentExecutor {
-
-    private final ChatClient chatClient;
-
-    public ResearchAgentExecutor(ChatClient.Builder builder) {
-        this.chatClient = builder.build();
-    }
-
-    @Override
-    public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-        String response = chatClient.prompt()
-            .user(userInput)
-            .call()
-            .content();
-        return List.of(new TextPart(response));
-    }
+    // Process an A2A request
+    Object handleRequest(A2ARequest request);
 }
 ```
 
-### Advisors
+## JSON-RPC Protocol
 
-All ChatClient advisors work with A2A agents:
+Agents are exposed via JSON-RPC 2.0 over HTTP.
 
-```java
-public class RagAgentExecutor extends DefaultSpringAIAgentExecutor {
+### Send Message
 
-    private final ChatClient chatClient;
-
-    public RagAgentExecutor(ChatClient.Builder builder, VectorStore vectorStore) {
-        this.chatClient = builder
-            .defaultAdvisors(
-                new QuestionAnswerAdvisor(vectorStore),
-                new MessageChatMemoryAdvisor(new InMemoryChatMemory())
-            )
-            .build();
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "sendMessage",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [{"text": "Hello, agent!"}]
     }
-
-    @Override
-    public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-        String response = chatClient.prompt()
-            .user(userInput)
-            .call()
-            .content();
-        return List.of(new TextPart(response));
-    }
+  },
+  "id": 1
 }
 ```
 
-### Vector Stores
+### Get Agent Card
 
-Agents can use vector stores for knowledge retrieval:
-
-```java
-public class KnowledgeAgentExecutor extends DefaultSpringAIAgentExecutor {
-
-    private final VectorStore vectorStore;
-    private final ChatClient chatClient;
-
-    public KnowledgeAgentExecutor(VectorStore vectorStore, ChatClient chatClient) {
-        this.vectorStore = vectorStore;
-        this.chatClient = chatClient;
-    }
-
-    @Override
-    public List<Part<?>> onExecute(String userInput, RequestContext context, TaskUpdater taskUpdater) {
-        List<Document> docs = vectorStore.similaritySearch(
-            SearchRequest.query(userInput).withTopK(5)
-        );
-
-        String knowledgeContext = docs.stream()
-            .map(Document::getText)
-            .collect(Collectors.joining("\n"));
-
-        String response = chatClient.prompt()
-            .user(u -> u.text("Context: " + knowledgeContext)
-                        .text("Question: " + userInput))
-            .call()
-            .content();
-        return List.of(new TextPart(response));
-    }
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "getAgentCard",
+  "params": {},
+  "id": 1
 }
 ```
 
-## Multi-Agent Patterns
+## Testing
 
-See the [airbnb-planner-multiagent](spring-ai-a2a-examples/airbnb-planner-multiagent/) example for a complete demonstration of multi-agent collaboration patterns including:
-- Sequential agent chaining
-- Parallel execution
-- Intelligent request routing
-- Response aggregation
-
-## Examples
-
-### Airbnb Planner Multi-Agent Example
-
-See [airbnb-planner-multiagent](spring-ai-a2a-examples/airbnb-planner-multiagent/) for a complete working example demonstrating:
-- Multiple specialized agents (Weather, Airbnb, Host)
-- AgentExecutorLifecycle implementation
-- ChatClient integration
-- Agent orchestration and routing
-- A2A protocol communication
-
-## Building on a2a-java SDK
-
-This implementation builds on top of the official [a2a-java SDK](https://github.com/a2aproject/a2a-java), specifically using framework-agnostic core modules:
-
-- `a2a-java-sdk-spec` - Protocol specification and data models
-- `a2a-java-sdk-client` - Client implementation
-- `a2a-java-sdk-server-common` - Server core (Jakarta EE APIs, no Quarkus)
-- `a2a-java-sdk-transport-jsonrpc` - JSON-RPC transport
-
-The Quarkus-based reference implementations are **not** used, making the integration pure Spring.
-
-## Configuration Properties
-
-```properties
-# Server port
-server.port=8080
-
-# A2A base path
-spring.ai.a2a.server.base-path=/a2a
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│           Spring AI Application                     │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐ │
-│  │  AgentExecutor Implementation                 │ │
-│  │  (extends DefaultSpringAIAgentExecutor)                │ │
-│  │                                                │ │
-│  │  - onExecute() - process requests             │ │
-│  │  - onCancel() - handle cancellation           │ │
-│  │  - onError() - handle errors                  │ │
-│  └───────────────────────────────────────────────┘ │
-│                      │                              │
-│                      ▼                              │
-│  ┌───────────────────────────────────────────────┐ │
-│  │  A2AAgentServer                               │ │
-│  │  - AgentCard configuration                    │ │
-│  │  - AgentExecutor integration                  │ │
-│  │  - A2A protocol handling                      │ │
-│  └───────────────────────────────────────────────┘ │
-│                      │                              │
-│                      ▼                              │
-│  ┌───────────────────────────────────────────────┐ │
-│  │  a2a-java SDK Integration                     │ │
-│  │  - TaskUpdater for lifecycle                  │ │
-│  │  - EventQueue for streaming                   │ │
-│  │  - RequestContext for metadata                │ │
-│  └───────────────────────────────────────────────┘ │
-│                      │                              │
-│                      ▼                              │
-│  ┌───────────────────────────────────────────────┐ │
-│  │  A2A Protocol Endpoint                        │ │
-│  │  /.well-known/agent-card.json                 │ │
-│  │  /a2a (JSON-RPC POST)                         │ │
-│  └───────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
-                       │
-                       │ A2A Protocol (JSON-RPC 2.0)
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────┐
-│  Other A2A Agents (Python, JavaScript, etc.)        │
-└─────────────────────────────────────────────────────┘
-```
-
-## TODO / Future Work
-
-- [ ] Enhanced streaming support
-- [ ] Integration tests with TCK compliance
-- [ ] Additional multi-agent examples
-- [ ] Documentation site
-- [ ] Performance optimization
-
-## Building
+Run the integration tests:
 
 ```bash
-# Build all modules
-cd spring-ai-a2a
-mvn clean install -DskipTests
+# Run all tests
+mvn test
 
-# Build specific module
-cd spring-ai-a2a-core
-mvn clean install
-
-# Build and run example
-cd spring-ai-a2a-examples/weather-agent
-export OPENAI_API_KEY=your-key
-mvn spring-boot:run
+# Run integration tests only
+cd spring-ai-a2a-integration-tests
+mvn test
 ```
 
-## Requirements
+## Project Status
 
-- Java 25+ (for Maven build, produces Java 17-compatible artifacts)
-- Spring Boot 4.0.0-RC2+
-- a2a-java SDK 0.4.0.Alpha1-SNAPSHOT
+**Version**: 0.1.0-SNAPSHOT
+**Status**: Active Development
+
+### Recent Changes (2026-01-13)
+
+- Removed spring-ai-agents dependency
+- Migrated to use A2A Java SDK directly
+- Renamed `A2AAgentModel` to `A2AExecutor` for better clarity
+- Simplified architecture with direct SDK usage
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
-
-## References
-
-- [A2A Protocol Specification](https://a2a-protocol.org)
-- [a2a-java SDK](https://github.com/a2aproject/a2a-java)
-- [Spring AI Documentation](https://docs.spring.io/spring-ai/reference/)
-- [Spring AI CLAUDE.md - A2A Design Section](../CLAUDE.md#a2a-design-for-spring-ai-developers)
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
 
 ## License
 
-Apache License 2.0
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+
+## Resources
+
+- [A2A Protocol Specification](https://a2a.anthropic.com/)
+- [A2A Java SDK](https://github.com/anthropics/a2a-java-sdk)
+- [Spring AI Documentation](https://docs.spring.io/spring-ai/reference/)
+- [Spring Boot Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/)
+
+## Support
+
+For questions and support:
+- GitHub Issues: [Report issues](https://github.com/your-org/spring-ai-a2a/issues)
+- Discussions: [Join discussions](https://github.com/your-org/spring-ai-a2a/discussions)
