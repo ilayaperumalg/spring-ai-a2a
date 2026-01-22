@@ -21,7 +21,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 /**
- * Weather Tools - Mock implementation for weather data.
+ * Mock weather forecast tools.
  *
  * @author Ilayaperumal Gopinathan
  */

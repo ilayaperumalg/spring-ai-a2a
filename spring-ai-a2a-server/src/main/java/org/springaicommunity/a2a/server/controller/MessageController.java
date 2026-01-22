@@ -34,57 +34,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * REST controller for handling A2A message sending.
- *
- * <p>This controller implements the A2A protocol endpoint for synchronous
- * message execution. It acts as a thin adapter between REST and the A2A SDK's
- * {@link RequestHandler}.
- *
- * <p><strong>Endpoint:</strong>
- * <ul>
- *   <li>{@code POST ${spring.ai.a2a.server.base-path:/a2a}} - Send a message to the agent</li>
- * </ul>
- *
- * <p><strong>Request Format:</strong>
- * <pre>
- * {
- *   "jsonrpc": "2.0",
- *   "method": "sendMessage",
- *   "params": {
- *     "message": {
- *       "role": "user",
- *       "parts": [{"type": "text", "text": "Hello agent"}],
- *       "messageId": "msg-001"
- *     }
- *   },
- *   "id": 1
- * }
- * </pre>
- *
- * <p><strong>Response Format:</strong>
- * <pre>
- * {
- *   "jsonrpc": "2.0",
- *   "id": 1,
- *   "result": {
- *     "message": {
- *       "role": "agent",
- *       "parts": [{"type": "text", "text": "Hello user"}]
- *     }
- *   }
- * }
- * </pre>
- *
- * <p><strong>Architecture:</strong>
- * <pre>
- * REST Request → MessageController → RequestHandler → AgentExecutor → ChatClient
- * </pre>
+ * REST controller for A2A message sending.
  *
  * @author Ilayaperumal Gopinathan
  * @author Christian Tzolov
  * @since 0.1.0
- * @see RequestHandler
- * @see io.a2a.server.agentexecution.AgentExecutor
  */
 @RestController
 public class MessageController {
@@ -93,37 +47,12 @@ public class MessageController {
 
 	private final RequestHandler requestHandler;
 
-	/**
-	 * Create a new MessageController.
-	 *
-	 * @param requestHandler the A2A SDK request handler
-	 */
 	public MessageController(RequestHandler requestHandler) {
 		this.requestHandler = requestHandler;
 	}
 
 	/**
-	 * Handle sendMessage JSON-RPC requests.
-	 *
-	 * <p>This method:
-	 * <ol>
-	 *   <li>Receives the JSON-RPC request with A2A SDK types</li>
-	 *   <li>Creates a ServerCallContext (for auth, state, extensions)</li>
-	 *   <li>Delegates to RequestHandler which orchestrates the agent execution</li>
-	 *   <li>Returns the JSON-RPC response with the result</li>
-	 * </ol>
-	 *
-	 * <p>The RequestHandler handles all protocol details including:
-	 * <ul>
-	 *   <li>Task lifecycle management</li>
-	 *   <li>AgentExecutor invocation</li>
-	 *   <li>Event queue coordination</li>
-	 *   <li>Error handling and JSON-RPC error responses</li>
-	 * </ul>
-	 *
-	 * @param request the sendMessage request
-	 * @return the sendMessage response
-	 * @throws JSONRPCError if the request fails
+	 * Handles sendMessage JSON-RPC requests.
 	 */
 	@PostMapping(
 		path = "${spring.ai.a2a.server.base-path:/a2a}",

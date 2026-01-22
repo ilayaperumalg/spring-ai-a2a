@@ -45,7 +45,7 @@ Spring AI's A2A implementation enables building multi-agent systems where AI age
       ┌──────────────▼─────────┐  ┌────────▼──────────────┐
       │   Weather Agent        │  │   Airbnb Agent        │
       │   (Specialist)         │  │   (Specialist)        │
-      │   Port: 10001          │  │   Port: 10002         │
+      │   Port: 10002          │  │   Port: 10003         │
       │                        │  │                       │
       │ ┌────────────────────┐ │  │ ┌───────────────────┐│
       │ │ DefaultA2AEndpoint    │ │  │ │ DefaultA2AEndpoint   ││
@@ -133,7 +133,7 @@ Step 3: Parallel Agent Calls via A2A Protocol
            ▼                                              ▼
 ┌──────────────────────┐                      ┌──────────────────────┐
 │  Weather Agent       │                      │  Airbnb Agent        │
-│  (Port 10001)        │                      │  (Port 10002)        │
+│  (Port 10002)        │                      │  (Port 10003)        │
 │                      │                      │                      │
 │  DefaultA2AEndpoint     │                      │  DefaultA2AEndpoint     │
 │  Server              │                      │  Server              │
@@ -252,9 +252,9 @@ Step 7: Final Response
 
 1. Host Agent Startup
    │
-   ├─→ A2AEndpointRegistry.registerAgent("weather", "http://localhost:10001/a2a")
+   ├─→ A2AEndpointRegistry.registerAgent("weather", "http://localhost:10002/a2a")
    │
-   ├─→ GET http://localhost:10001/a2a
+   ├─→ GET http://localhost:10002/a2a
    │   (Fetch AgentCard)
    │
    ├─→ Response:
@@ -274,7 +274,7 @@ Step 7: Final Response
    │     "supportedInterfaces": [
    │       {
    │         "protocolBinding": "JSONRPC",
-   │         "url": "http://localhost:10001/a2a"
+   │         "url": "http://localhost:10002/a2a"
    │       }
    │     ],
    │     "capabilities": {
@@ -302,7 +302,7 @@ A2AResponse response = weatherAgent.sendMessage(request);
 
 ↓ Converts to JSON-RPC
 
-POST http://localhost:10001/a2a
+POST http://localhost:10002/a2a
 Content-Type: application/json
 
 {
@@ -401,7 +401,7 @@ A2AResponse {
 │                                                                         │
 │ Example:                                                                │
 │   A2AEndpoint agent = DefaultA2AClient.builder()                      │
-│       .agentUrl("http://localhost:10001/a2a")                           │
+│       .agentUrl("http://localhost:10002/a2a")                           │
 │       .build();                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -466,7 +466,7 @@ A2AResponse {
 │                                                                         │
 │ Example:                                                                │
 │   A2AEndpointRegistry registry = new A2AEndpointRegistry();                   │
-│   registry.registerAgent("weather", "http://localhost:10001/a2a");      │
+│   registry.registerAgent("weather", "http://localhost:10002/a2a");      │
 │   A2AEndpoint agent = registry.getAgent("weather");                        │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -641,8 +641,8 @@ Use `A2AEndpointRegistry` to discover and manage agents:
 A2AEndpointRegistry registry = new A2AEndpointRegistry();
 
 // Register remote agents
-registry.registerAgent("weather", "http://localhost:10001/a2a");
-registry.registerAgent("airbnb", "http://localhost:10002/a2a");
+registry.registerAgent("weather", "http://localhost:10002/a2a");
+registry.registerAgent("airbnb", "http://localhost:10003/a2a");
 
 // Get agent by name
 A2AEndpoint weatherAgent = registry.getAgent("weather");
@@ -658,7 +658,7 @@ Seamlessly integrate A2A agents with Spring AI's ChatClient:
 ```java
 // Direct agent usage is recommended
 A2AEndpoint agent = DefaultA2AClient.builder()
-    .agentUrl("http://localhost:10001/a2a")
+    .agentUrl("http://localhost:10002/a2a")
     .build();
 
 A2AResponse response = agent.sendMessage(A2ARequest.of("What's the weather?"));

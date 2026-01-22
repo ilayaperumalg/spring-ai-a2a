@@ -89,14 +89,14 @@ public class RemoteAgentConnections {
 
 ### 2. Specialized Agents (Weather & Accommodation)
 
-**Pattern**: Zero-config agents using ChatClientExecutor pattern with domain-specific tools
+**Pattern**: Zero-config agents extending AbstractA2AChatClientAgentExecutor with domain-specific tools
 
 Agents provide:
 - `AgentCard` bean (agent metadata)
 - `ChatClient` bean (with tools configured)
-- `ChatClientExecutor` bean (optional - for custom execution logic)
+- `AgentExecutor` bean (extends AbstractA2AChatClientAgentExecutor)
 
-Auto-configuration creates `DefaultA2AChatClientAgentExecutor` bridging A2A protocol to your ChatClient.
+The framework uses the A2A SDK to bridge A2A protocol to your ChatClient.
 
 **How it works**:
 ```java
@@ -110,26 +110,27 @@ public class WeatherAgentApplication {
 
     @Bean
     public AgentCard agentCard() {
-        return new AgentCard(
-            "Weather Agent",
-            "Helps with weather forecasts and climate data",
-            "http://localhost:10001/a2a",
-            null,
-            "1.0.0",
-            null,
-            new AgentCapabilities(false, false, false, List.of()),
-            List.of("text"),
-            List.of("text"),
-            List.of(),
-            false,
-            null,
-            null,
-            null,
-            List.of(new AgentInterface("JSONRPC", "http://localhost:10001/a2a")),
-            "JSONRPC",
-            "0.3.0",
-            null
-        );
+        return new AgentCard.Builder()
+            .name("Weather Agent")
+            .description("Helps with weather forecasts and climate data")
+            .url("http://localhost:10001/a2a")
+            .version("1.0.0")
+            .capabilities(new AgentCapabilities.Builder()
+                .streaming(false)
+                .build())
+            .defaultInputModes(List.of("text"))
+            .defaultOutputModes(List.of("text"))
+            .skills(List.of(
+                new AgentSkill.Builder()
+                    .id("weather_search")
+                    .name("Weather Search")
+                    .description("Provides current weather and forecasts for any location")
+                    .tags(List.of("weather", "forecast", "climate"))
+                    .examples(List.of("What's the weather in Paris?"))
+                    .build()
+            ))
+            .protocolVersion("0.3.0")
+            .build();
     }
 
     @Bean
@@ -143,17 +144,25 @@ public class WeatherAgentApplication {
             .build();
     }
 
-    // Optional: Provide custom ChatClientExecutor for custom execution logic
     @Bean
-    public ChatClientExecutor chatClientExecutor() {
-        return (chatClient, userMessage, context) -> chatClient.prompt()
-            .user(userMessage)
-            .toolContext(context)
-            .call()
-            .content();
+    public AgentExecutor weatherAgentExecutor(ChatClient weatherChatClient) {
+        return new WeatherAgentExecutor(weatherChatClient);
     }
 
-    // Note: AgentExecutor (DefaultA2AChatClientAgentExecutor) is auto-configured
+    private static class WeatherAgentExecutor extends AbstractA2AChatClientAgentExecutor {
+
+        public WeatherAgentExecutor(ChatClient chatClient) {
+            super(chatClient);
+        }
+
+        @Override
+        protected String processUserMessage(String userMessage) {
+            return this.chatClient.prompt()
+                .user(userMessage)
+                .call()
+                .content();
+        }
+    }
 }
 ```
 
@@ -384,7 +393,7 @@ The console requires foreground execution. Don't run with `&` or in background m
 2. **LLM-Driven Routing** - No manual routing logic, LLM decides which agent to call
 3. **Independent Agents** - Each agent runs independently and can be scaled separately
 4. **Standard Patterns** - Uses Spring Boot and Spring AI's `@Tool` annotations
-5. **Easy to Extend** - Add new agents by implementing `DefaultChatClientAgentExecutor` and registering tools
+5. **Easy to Extend** - Add new agents by extending `AbstractA2AChatClientAgentExecutor` and registering tools
 
 ## Learn More
 

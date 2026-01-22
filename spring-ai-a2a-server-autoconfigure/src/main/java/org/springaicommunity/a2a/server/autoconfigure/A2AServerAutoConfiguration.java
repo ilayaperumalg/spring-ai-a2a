@@ -16,6 +16,12 @@
 
 package org.springaicommunity.a2a.server.autoconfigure;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.config.A2AConfigProvider;
 import io.a2a.server.events.InMemoryQueueManager;
@@ -32,9 +38,8 @@ import io.a2a.spec.AgentCard;
 import io.a2a.spec.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springaicommunity.a2a.server.executor.DefaultA2AChatClientAgentExecutor;
-import org.springaicommunity.a2a.server.util.A2AContext;
-import org.springaicommunity.chatclient.executor.ChatClientExecutor;
+import org.springaicommunity.a2a.server.executor.AbstractA2AChatClientAgentExecutor;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -45,13 +50,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-
-import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Spring Boot auto-configuration for A2A Server.
@@ -100,20 +98,6 @@ public class A2AServerAutoConfiguration {
 	public A2AConfigProvider configProvider() {
 		logger.info("Auto-configuring DefaultA2AConfigProvider for configuration");
 		return new DefaultA2AConfigProvider();
-	}
-
-	/**
-	 * Provide default ChatClientExecutor (protocol-agnostic).
-	 */
-	@Bean
-	@ConditionalOnMissingBean
-	public ChatClientExecutor chatClientExecutor() {
-		logger.info("Auto-configuring default ChatClientExecutor");
-		return (chatClient, userMessage, context) -> chatClient.prompt()
-			.user(userMessage)
-			.toolContext(context)
-			.call()
-			.content();
 	}
 
 	/**
@@ -184,19 +168,11 @@ public class A2AServerAutoConfiguration {
 	}
 
 	/**
-	 * Provide default AgentExecutor bridging ChatClient to A2A protocol.
-	 */
-	@Bean
-	@ConditionalOnMissingBean
-	public AgentExecutor agentExecutor(
-			ChatClient chatClient,
-			ChatClientExecutor executor) {
-		logger.info("Auto-configuring DefaultA2AChatClientAgentExecutor");
-		return new DefaultA2AChatClientAgentExecutor(chatClient, executor);
-	}
-
-	/**
 	 * Provide RequestHandler wiring all A2A SDK components together.
+	 *
+	 * <p>Note: Applications must provide their own {@link AgentExecutor} bean
+	 * by extending {@link AbstractA2AChatClientAgentExecutor} and implementing
+	 * the {@code executeAsMessage} method.
 	 */
 	@Bean
 	@ConditionalOnMissingBean

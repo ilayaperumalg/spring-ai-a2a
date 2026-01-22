@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springaicommunity.a2a.examples.composable.weather;
+package org.springaicommunity.a2a.examples.composable.airbnb;
 
 import io.a2a.server.agentexecution.AgentExecutor;
 import io.a2a.server.agentexecution.RequestContext;
@@ -35,35 +35,36 @@ import org.springaicommunity.a2a.server.executor.AbstractA2AChatClientAgentExecu
 import java.util.List;
 
 /**
- * A2A agent for weather forecasting and climate data.
+ * A2A agent for accommodation and lodging search.
  *
  * @author Ilayaperumal Gopinathan
+ * @author Christian Tzolov
  * @since 0.1.0
  */
 @SpringBootApplication
-public class WeatherAgentApplication {
+public class AirbnbAgentApplication {
 
-	private static final String WEATHER_SYSTEM_INSTRUCTION = """
-		You are a specialized weather forecast assistant.
-		Your primary function is to utilize the provided tools to retrieve and relay weather information.
-		Always use the available tools for accurate, up-to-date weather data.
-		Do not fabricate or guess weather conditions.
-		Present your response in a clear, concise manner, highlighting key weather details such as temperature, conditions, and any relevant forecasts.
+	private static final String AIRBNB_SYSTEM_INSTRUCTION = """
+		You are a specialized assistant for accommodation search and recommendations.
+		Your primary function is to utilize the provided tools to search for accommodations and answer related questions.
+		You must rely exclusively on these tools for information; do not invent listings or prices.
+		Always use the available tools for accurate, up-to-date accommodation data.
+		Ensure that your Markdown-formatted response includes all relevant tool output, with particular emphasis on providing direct links to listings.
 		""";
 
 	public static void main(String[] args) {
-		SpringApplication.run(WeatherAgentApplication.class, args);
+		SpringApplication.run(AirbnbAgentApplication.class, args);
 	}
 
 	/**
 	 * Agent card with metadata and capabilities.
 	 */
 	@Bean
-	public AgentCard agentCard() {
+    public AgentCard agentCard() {
 		return new AgentCard.Builder()
-			.name("Weather Agent")
-			.description("Helps with weather forecasts and climate data")
-			.url("http://localhost:10001/a2a")
+			.name("Airbnb Agent")
+			.description("Helps with searching accommodations, hotels, airbnb, and lodging")
+			.url("http://localhost:10002/a2a")
 			.version("1.0.0")
 			.capabilities(new AgentCapabilities.Builder()
 				.streaming(false)
@@ -72,11 +73,11 @@ public class WeatherAgentApplication {
 			.defaultOutputModes(List.of("text"))
 			.skills(List.of(
 				new AgentSkill.Builder()
-					.id("weather_search")
-					.name("Weather Search")
-					.description("Provides current weather and forecasts for any location")
-					.tags(List.of("weather", "forecast", "climate"))
-					.examples(List.of("What's the weather in Paris?", "7-day forecast for Tokyo"))
+					.id("accommodation_search")
+					.name("Accommodation Search")
+					.description("Provides hotel and accommodation recommendations for any location")
+					.tags(List.of("accommodation", "hotel", "airbnb", "lodging"))
+					.examples(List.of("Find hotels in Paris for 3 nights", "Recommend accommodations in Tokyo"))
 					.build()
 			))
 			.protocolVersion("0.3.0")
@@ -84,13 +85,13 @@ public class WeatherAgentApplication {
 	}
 
 	/**
-	 * Chat client configured with weather tools.
+	 * Chat client configured with accommodation tools.
 	 */
 	@Bean
-	public ChatClient weatherChatClient(ChatClient.Builder chatClientBuilder, WeatherTools weatherTools) {
+    public ChatClient airbnbChatClient(ChatClient.Builder chatClientBuilder, AirbnbTools airbnbTools) {
 		return chatClientBuilder.clone()
-			.defaultSystem(WEATHER_SYSTEM_INSTRUCTION)
-			.defaultTools(weatherTools)
+			.defaultSystem(AIRBNB_SYSTEM_INSTRUCTION)
+			.defaultTools(airbnbTools)
 			.build();
 	}
 
@@ -98,16 +99,16 @@ public class WeatherAgentApplication {
 	 * Agent executor for processing A2A requests.
 	 */
 	@Bean
-	public AgentExecutor weatherAgentExecutor(ChatClient weatherChatClient) {
-		return new WeatherAgentExecutor(weatherChatClient);
+    public AgentExecutor airbnbAgentExecutor(ChatClient airbnbChatClient) {
+		return new AirbnbAgentExecutor(airbnbChatClient);
 	}
 
 	/**
 	 * Agent executor extending AbstractA2AChatClientAgentExecutor.
 	 */
-	private static class WeatherAgentExecutor extends AbstractA2AChatClientAgentExecutor {
+	private static class AirbnbAgentExecutor extends AbstractA2AChatClientAgentExecutor {
 
-		public WeatherAgentExecutor(ChatClient chatClient) {
+		public AirbnbAgentExecutor(ChatClient chatClient) {
 			super(chatClient);
 		}
 

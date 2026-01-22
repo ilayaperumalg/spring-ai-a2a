@@ -16,6 +16,8 @@
 
 package org.springaicommunity.a2a.server;
 
+import io.a2a.server.agentexecution.AgentExecutor;
+import io.a2a.server.agentexecution.RequestContext;
 import io.a2a.spec.AgentCard;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
+import org.springaicommunity.a2a.server.executor.AbstractA2AChatClientAgentExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -94,6 +97,22 @@ class A2AClientServerIntegrationTests {
 				"0.1.0",
 				null
 			);
+		}
+
+		/**
+		 * Provides a test AgentExecutor bean.
+		 */
+		@Bean
+		public AgentExecutor testAgentExecutor(ChatClient testChatClient) {
+			return new AbstractA2AChatClientAgentExecutor(testChatClient) {
+				@Override
+				protected String processUserMessage(String userMessage) {
+					return this.chatClient.prompt()
+						.user(userMessage)
+						.call()
+						.content();
+				}
+			};
 		}
 	}
 

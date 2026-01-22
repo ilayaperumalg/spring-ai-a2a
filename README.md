@@ -22,8 +22,8 @@ Spring AI A2A provides **server-side** support for exposing Spring AI agents via
 ```xml
 <dependency>
     <groupId>org.springaicommunity</groupId>
-    <artifactId>spring-ai-a2a-server</artifactId>
-    <version>0.3.3.Final</version>
+    <artifactId>spring-ai-a2a-server-autoconfigure</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
 </dependency>
 
 <!-- Spring AI OpenAI (or your preferred model) -->
@@ -288,18 +288,15 @@ See [airbnb-planner-multiagent/README.md](spring-ai-a2a-examples/airbnb-planner-
 
 ```
 spring-ai-a2a/
-├── spring-ai-chatclient-utils/        # Protocol-agnostic ChatClientExecutor interface
 ├── spring-ai-a2a-server/              # A2A protocol server implementation
-│   ├── executor/                      # DefaultA2AChatClientAgentExecutor
-│   └── controller/                    # A2A protocol controllers
+│   ├── executor/                      # AbstractA2AChatClientAgentExecutor
+│   └── controller/                    # Message and Task controllers
 ├── spring-ai-a2a-server-autoconfigure/ # Spring Boot auto-configuration
-├── spring-ai-a2a-utils/               # Optional A2A utilities
-├── spring-ai-a2a-examples/            # Example applications
-│   └── airbnb-planner-multiagent/     # Multi-agent example
-│       ├── weather-agent/
-│       ├── accommodation-agent/
-│       └── travel-planner/
-└── spring-ai-a2a-integration-tests/   # Integration tests
+└── spring-ai-a2a-examples/            # Example applications
+    └── airbnb-planner-multiagent/     # Multi-agent example
+        ├── weather-agent/
+        ├── airbnb-agent/
+        └── host-agent/
 ```
 
 ## Configuration
@@ -349,9 +346,9 @@ spring:
 
 ## Implementation Patterns
 
-### Pattern 1: Zero-Config Agent with Auto-Configuration
+### Pattern 1: Simple Agent with AbstractA2AChatClientAgentExecutor
 
-Best for most agents - just provide ChatClient and AgentCard beans:
+Best for most agents - extend AbstractA2AChatClientAgentExecutor and implement one method:
 
 ```java
 @Bean
@@ -389,7 +386,18 @@ public ChatClient myChatClient(
         .build();
 }
 
-// AgentExecutor is automatically created from ChatClient by auto-configuration
+@Bean
+public AgentExecutor myAgentExecutor(ChatClient myChatClient) {
+    return new AbstractA2AChatClientAgentExecutor(myChatClient) {
+        @Override
+        protected String processUserMessage(String userMessage) {
+            return this.chatClient.prompt()
+                .user(userMessage)
+                .call()
+                .content();
+        }
+    };
+}
 ```
 
 **Use when**:
@@ -398,10 +406,10 @@ public ChatClient myChatClient(
 - No custom execution logic needed
 
 **How it works**:
-- Auto-configuration detects ChatClient bean
-- Uses ChatClientExecutor bean (or provides default implementation)
-- Creates DefaultA2AChatClientAgentExecutor bridging A2A protocol to ChatClient
-- Exposes A2A endpoints at `/a2a`
+- You provide ChatClient and AgentCard beans
+- Create AgentExecutor extending AbstractA2AChatClientAgentExecutor
+- Implement single method: `processUserMessage(String userMessage)`
+- Framework handles A2A protocol and exposes endpoints at `/a2a`
 
 ### Pattern 2: Custom AgentExecutor
 

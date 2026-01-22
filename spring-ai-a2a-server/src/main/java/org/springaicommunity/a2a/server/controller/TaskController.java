@@ -35,60 +35,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * REST controller for handling A2A task operations.
- *
- * <p>This controller implements the A2A protocol endpoints for task management.
- * It acts as a thin adapter between REST and the A2A SDK's {@link RequestHandler}.
- *
- * <p><strong>Endpoints:</strong>
- * <ul>
- *   <li>{@code GET ${spring.ai.a2a.server.base-path:/a2a}/tasks/{taskId}} - Get task status</li>
- *   <li>{@code POST ${spring.ai.a2a.server.base-path:/a2a}/tasks/{taskId}/cancel} - Cancel a task</li>
- * </ul>
- *
- * <p><strong>Task Lifecycle:</strong>
- * <pre>
- * SUBMITTED → WORKING → COMPLETED
- *                  ↓
- *               CANCELLED
- *                  ↓
- *                FAILED
- * </pre>
- *
- * <p><strong>Get Task Example:</strong>
- * <pre>
- * GET /a2a/tasks/task-123
- *
- * Response:
- * {
- *   "id": "task-123",
- *   "status": {
- *     "state": "COMPLETED"
- *   },
- *   "artifacts": [{
- *     "parts": [{"type": "text", "text": "Task result"}]
- *   }]
- * }
- * </pre>
- *
- * <p><strong>Cancel Task Example:</strong>
- * <pre>
- * POST /a2a/tasks/task-123/cancel
- *
- * Response:
- * {
- *   "id": "task-123",
- *   "status": {
- *     "state": "CANCELLED"
- *   }
- * }
- * </pre>
+ * REST controller for A2A task operations.
  *
  * @author Ilayaperumal Gopinathan
  * @author Christian Tzolov
  * @since 0.1.0
- * @see RequestHandler
- * @see Task
  */
 @RestController
 @RequestMapping("${spring.ai.a2a.server.base-path:/a2a}/tasks")
@@ -98,25 +49,12 @@ public class TaskController {
 
 	private final RequestHandler requestHandler;
 
-	/**
-	 * Create a new TaskController.
-	 *
-	 * @param requestHandler the A2A SDK request handler
-	 */
 	public TaskController(RequestHandler requestHandler) {
 		this.requestHandler = requestHandler;
 	}
 
 	/**
-	 * Retrieve the status and results of a specific task.
-	 *
-	 * <p>This endpoint allows clients to query task status for long-running operations.
-	 * The response includes the task state, any artifacts produced, and error information
-	 * if the task failed.
-	 *
-	 * @param taskId the task identifier
-	 * @return the task object
-	 * @throws JSONRPCError if the task is not found or an error occurs
+	 * Returns task status and results.
 	 */
 	@GetMapping(
 		path = "/{taskId}",
@@ -144,17 +82,7 @@ public class TaskController {
 	}
 
 	/**
-	 * Cancel a running task.
-	 *
-	 * <p>This endpoint allows clients to request cancellation of a long-running task.
-	 * Note that cancellation is cooperative - the AgentExecutor must check for cancellation
-	 * and stop work appropriately.
-	 *
-	 * <p>Tasks that are already completed or failed cannot be cancelled.
-	 *
-	 * @param taskId the task identifier
-	 * @return the updated task object with CANCELLED state
-	 * @throws JSONRPCError if the task is not found or cannot be cancelled
+	 * Cancels a running task.
 	 */
 	@PostMapping(
 		path = "/{taskId}/cancel",
