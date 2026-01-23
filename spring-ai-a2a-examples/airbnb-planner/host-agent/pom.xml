@@ -21,6 +21,7 @@
 	
 	<properties>
 		<java.version>17</java.version>
+		<maven.deploy.skip>true</maven.deploy.skip>
 		<io.a2a.sdk.version>0.3.3.Final</io.a2a.sdk.version>
 	</properties>
 
