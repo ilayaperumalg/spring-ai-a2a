@@ -16,22 +16,23 @@
 
 package org.springaicommunity.a2a.server.controller;
 
-import io.a2a.server.ServerCallContext;
-import io.a2a.server.requesthandlers.RequestHandler;
-import io.a2a.spec.EventKind;
-import io.a2a.spec.JSONRPCError;
-import io.a2a.spec.MessageSendParams;
-import io.a2a.spec.SendMessageRequest;
-import io.a2a.spec.SendMessageResponse;
+import java.util.Map;
+import java.util.Set;
+
+import org.a2aproject.sdk.server.ServerCallContext;
+import org.a2aproject.sdk.server.requesthandlers.RequestHandler;
+import org.a2aproject.sdk.spec.A2AError;
+import org.a2aproject.sdk.spec.EventKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springaicommunity.a2a.server.model.SendMessageRequest;
+import org.springaicommunity.a2a.server.model.SendMessageResponse;
+
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
-import java.util.Set;
 
 /**
  * REST controller for A2A message sending.
@@ -52,36 +53,38 @@ public class MessageController {
 	}
 
 	/**
-	 * Handles sendMessage JSON-RPC requests.
+	 * Handles sendMessage JSON-RPC requests. Passes the {@code A2A-Version} request
+	 * header to the {@link ServerCallContext} so that the {@link RequestHandler} can
+	 * apply the correct protocol version rules (v0.3 vs v1.0).
 	 */
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public SendMessageResponse sendMessage(@RequestBody SendMessageRequest request) throws JSONRPCError {
+	public SendMessageResponse sendMessage(@RequestBody SendMessageRequest request,
+			@RequestHeader(value = "A2A-Version", required = false) String a2aVersion) throws A2AError {
 
-		MessageSendParams params = request.getParams();
-		logger.debug("Received sendMessage request - id: {}", request.getId());
+		logger.debug("Received sendMessage request - id: {}", request.id());
 
 		try {
-			// Create server call context
+			String version = (a2aVersion == null || a2aVersion.isBlank()) ? "0.3" : a2aVersion;
+
 			// TODO: Add support for auth context, state, and extensions
-			ServerCallContext context = new ServerCallContext(null, // auth context (not
-																	// used yet)
+			ServerCallContext context = new ServerCallContext(null, // auth context
 					Map.of(), // state
-					Set.of() // extensions
+					Set.of(), // extensions
+					version // requested protocol version
 			);
 
-			// Delegate to SDK's RequestHandler - handles all protocol logic
-			EventKind result = this.requestHandler.onMessageSend(params, context);
+			EventKind result = this.requestHandler.onMessageSend(request.params(), context);
 
-			logger.debug("Message processed successfully - id: {}", request.getId());
-			return new SendMessageResponse(request.getId(), result);
+			logger.debug("Message processed successfully - id: {}", request.id());
+			return new SendMessageResponse(request.jsonrpc(), request.id(), result);
 		}
-		catch (JSONRPCError e) {
-			logger.error("Error processing message - id: {}", request.getId(), e);
+		catch (A2AError e) {
+			logger.error("Error processing message - id: {}", request.id(), e);
 			throw e;
 		}
 		catch (Exception e) {
-			logger.error("Unexpected error processing message - id: {}", request.getId(), e);
-			throw new JSONRPCError(-32603, "Internal error: " + e.getMessage(), null);
+			logger.error("Unexpected error processing message - id: {}", request.id(), e);
+			throw new A2AError(-32603, "Internal error: " + e.getMessage(), null);
 		}
 	}
 

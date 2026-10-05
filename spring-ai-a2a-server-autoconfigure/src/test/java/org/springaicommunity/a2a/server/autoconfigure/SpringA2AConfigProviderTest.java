@@ -17,7 +17,7 @@ package org.springaicommunity.a2a.server.autoconfigure;
 
 import java.util.Optional;
 
-import io.a2a.server.config.DefaultValuesConfigProvider;
+import org.a2aproject.sdk.server.config.DefaultValuesConfigProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

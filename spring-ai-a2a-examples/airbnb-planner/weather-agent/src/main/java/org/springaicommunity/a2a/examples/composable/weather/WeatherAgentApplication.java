@@ -2,10 +2,10 @@ package org.springaicommunity.a2a.examples.composable.weather;
 
 import java.util.List;
 
-import io.a2a.server.agentexecution.AgentExecutor;
-import io.a2a.spec.AgentCapabilities;
-import io.a2a.spec.AgentCard;
-import io.a2a.spec.AgentSkill;
+import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
+import org.a2aproject.sdk.spec.AgentCapabilities;
+import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.AgentSkill;
 import org.springaicommunity.a2a.server.executor.DefaultAgentExecutor;
 
 import org.springframework.ai.chat.client.ChatClient;
@@ -39,20 +39,21 @@ public class WeatherAgentApplication {
 	public AgentCard agentCard(@Value("${server.port:8080}") int port,
 			@Value("${server.servlet.context-path:/}") String contextPath) {
 
-		return new AgentCard.Builder().name("Weather Agent")
+		return AgentCard.builder()
+			.name("Weather Agent")
 			.description("Helps with weather")
 			.url("http://localhost:" + port + contextPath + "/")
 			.version("1.0.0")
-			.capabilities(new AgentCapabilities.Builder().streaming(false).build())
+			.capabilities(AgentCapabilities.builder().streaming(false).build())
 			.defaultInputModes(List.of("text"))
 			.defaultOutputModes(List.of("text"))
-			.skills(List.of(new AgentSkill.Builder().id("weather_search")
+			.skills(List.of(AgentSkill.builder()
+				.id("weather_search")
 				.name("Search weather")
 				.description("Helps with weather in city, or states")
 				.tags(List.of("weather"))
 				.examples(List.of("weather in LA, CA"))
 				.build()))
-			.protocolVersion("0.3.0")
 			.build();
 	}
 

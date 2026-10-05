@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 - 2025 the original author or authors.
+ * Copyright 2025 - 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,19 +24,19 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import io.a2a.A2A;
-import io.a2a.client.Client;
-import io.a2a.client.ClientEvent;
-import io.a2a.client.TaskEvent;
-import io.a2a.client.config.ClientConfig;
-import io.a2a.client.transport.jsonrpc.JSONRPCTransport;
-import io.a2a.client.transport.jsonrpc.JSONRPCTransportConfig;
-import io.a2a.spec.AgentCard;
-import io.a2a.spec.Artifact;
-import io.a2a.spec.Message;
-import io.a2a.spec.Part;
-import io.a2a.spec.Task;
-import io.a2a.spec.TextPart;
+import org.a2aproject.sdk.A2A;
+import org.a2aproject.sdk.client.Client;
+import org.a2aproject.sdk.client.ClientEvent;
+import org.a2aproject.sdk.client.TaskEvent;
+import org.a2aproject.sdk.client.config.ClientConfig;
+import org.a2aproject.sdk.client.transport.jsonrpc.JSONRPCTransport;
+import org.a2aproject.sdk.client.transport.jsonrpc.JSONRPCTransportConfig;
+import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.Artifact;
+import org.a2aproject.sdk.spec.Message;
+import org.a2aproject.sdk.spec.Part;
+import org.a2aproject.sdk.spec.Task;
+import org.a2aproject.sdk.spec.TextPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,10 +97,8 @@ public class RemoteAgentConnections {
 		}
 
 		try {
-			// Create the message
-			Message message = new Message.Builder().role(Message.Role.USER)
-				.parts(List.of(new TextPart(task, null)))
-				.build();
+			// Create the message using SDK 1.4.0 builder API
+			Message message = Message.builder().role(Message.Role.ROLE_USER).parts(List.of(new TextPart(task))).build();
 
 			// Use CompletableFuture to wait for the response
 			CompletableFuture<String> responseFuture = new CompletableFuture<>();
@@ -109,16 +107,16 @@ public class RemoteAgentConnections {
 			BiConsumer<ClientEvent, AgentCard> consumer = (event, card) -> {
 				if (event instanceof TaskEvent taskEvent) {
 					Task completedTask = taskEvent.getTask();
-					logger.info("Received task response: status={}", completedTask.getStatus().state());
+					logger.info("Received task response: status={}", completedTask.status().state());
 
 					// Extract text from artifacts
-					if (completedTask.getArtifacts() != null) {
+					if (completedTask.artifacts() != null) {
 						StringBuilder sb = new StringBuilder();
-						for (Artifact artifact : completedTask.getArtifacts()) {
+						for (Artifact artifact : completedTask.artifacts()) {
 							if (artifact.parts() != null) {
 								for (Part<?> part : artifact.parts()) {
 									if (part instanceof TextPart textPart) {
-										sb.append(textPart.getText());
+										sb.append(textPart.text());
 									}
 								}
 							}

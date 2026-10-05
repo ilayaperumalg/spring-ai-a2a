@@ -16,7 +16,8 @@
 
 package org.springaicommunity.a2a.server.executor;
 
-import io.a2a.server.agentexecution.RequestContext;
+import org.a2aproject.sdk.server.agentexecution.RequestContext;
+
 import org.springframework.ai.chat.client.ChatClient;
 
 /**

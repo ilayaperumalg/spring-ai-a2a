@@ -18,8 +18,10 @@ package org.springaicommunity.a2a.server;
 
 import java.util.List;
 
-import io.a2a.server.agentexecution.AgentExecutor;
-import io.a2a.spec.AgentCard;
+import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
+import org.a2aproject.sdk.spec.AgentCapabilities;
+import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.AgentInterface;
 import org.junit.jupiter.api.Test;
 import org.springaicommunity.a2a.server.executor.DefaultAgentExecutor;
 
@@ -76,15 +78,24 @@ class A2AClientServerIntegrationTests {
 		}
 
 		/**
-		 * Provides AgentCard bean for testing.
+		 * Provides AgentCard bean for testing using the builder API (SDK 1.4.0+).
 		 */
 		@Bean
 		public AgentCard testAgentCard() {
-			return new AgentCard("Spring AI A2A Agent", "A2A agent powered by Spring AI", "http://localhost:58888/a2a",
-					null, "1.0.0", null, new io.a2a.spec.AgentCapabilities(false, false, false, List.of()),
-					List.of("text"), List.of("text"), List.of(), false, null, null, null,
-					List.of(new io.a2a.spec.AgentInterface("JSONRPC", "http://localhost:58888/a2a")), "JSONRPC",
-					"0.1.0", null);
+			return AgentCard.builder()
+				.name("Spring AI A2A Agent")
+				.description("A2A agent powered by Spring AI")
+				.version("1.0.0")
+				.capabilities(AgentCapabilities.builder()
+					.streaming(false)
+					.pushNotifications(false)
+					.extendedAgentCard(false)
+					.build())
+				.defaultInputModes(List.of("text"))
+				.defaultOutputModes(List.of("text"))
+				.skills(List.of())
+				.supportedInterfaces(List.of(new AgentInterface("JSONRPC", "http://localhost:58888/a2a")))
+				.build();
 		}
 
 		/**
@@ -115,7 +126,6 @@ class A2AClientServerIntegrationTests {
 		assertThat(this.agentCard.name()).isEqualTo("Spring AI A2A Agent");
 		assertThat(this.agentCard.description()).isEqualTo("A2A agent powered by Spring AI");
 		assertThat(this.agentCard.version()).isEqualTo("1.0.0");
-		assertThat(this.agentCard.protocolVersion()).isEqualTo("0.1.0");
 	}
 
 	/**

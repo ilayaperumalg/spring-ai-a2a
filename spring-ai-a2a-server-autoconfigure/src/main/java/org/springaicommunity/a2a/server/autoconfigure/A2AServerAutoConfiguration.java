@@ -22,20 +22,23 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.a2a.server.agentexecution.AgentExecutor;
-import io.a2a.server.config.DefaultValuesConfigProvider;
-import io.a2a.server.events.InMemoryQueueManager;
-import io.a2a.server.events.QueueManager;
-import io.a2a.server.requesthandlers.DefaultRequestHandler;
-import io.a2a.server.requesthandlers.RequestHandler;
-import io.a2a.server.tasks.InMemoryPushNotificationConfigStore;
-import io.a2a.server.tasks.InMemoryTaskStore;
-import io.a2a.server.tasks.PushNotificationConfigStore;
-import io.a2a.server.tasks.PushNotificationSender;
-import io.a2a.server.tasks.TaskStateProvider;
-import io.a2a.server.tasks.TaskStore;
-import io.a2a.spec.AgentCard;
-import io.a2a.spec.Task;
+import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
+import org.a2aproject.sdk.server.config.DefaultValuesConfigProvider;
+import org.a2aproject.sdk.server.events.InMemoryQueueManager;
+import org.a2aproject.sdk.server.events.MainEventBus;
+import org.a2aproject.sdk.server.events.MainEventBusProcessor;
+import org.a2aproject.sdk.server.events.QueueManager;
+import org.a2aproject.sdk.server.requesthandlers.DefaultRequestHandler;
+import org.a2aproject.sdk.server.requesthandlers.RequestHandler;
+import org.a2aproject.sdk.server.tasks.InMemoryPushNotificationConfigStore;
+import org.a2aproject.sdk.server.tasks.InMemoryTaskStore;
+import org.a2aproject.sdk.server.tasks.PushNotificationConfigStore;
+import org.a2aproject.sdk.server.tasks.PushNotificationSender;
+import org.a2aproject.sdk.server.tasks.TaskStateProvider;
+import org.a2aproject.sdk.server.tasks.TaskStore;
+import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.StreamingEventKind;
+import org.a2aproject.sdk.spec.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springaicommunity.a2a.server.controller.AgentCardController;
@@ -128,13 +131,24 @@ public class A2AServerAutoConfiguration {
 	}
 
 	/**
-	 * Provide default QueueManager (InMemoryQueueManager).
+	 * Provide MainEventBus for coordinating task events across SDK components.
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public QueueManager queueManager(TaskStore taskStore) {
+	public MainEventBus mainEventBus() {
+		logger.info("Auto-configuring MainEventBus for A2A event coordination");
+		return new MainEventBus();
+	}
+
+	/**
+	 * Provide default QueueManager (InMemoryQueueManager). Requires MainEventBus for
+	 * event routing in SDK 1.4.0+.
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public QueueManager queueManager(TaskStore taskStore, MainEventBus mainEventBus) {
 		logger.info("Auto-configuring InMemoryQueueManager for event queue management");
-		return new InMemoryQueueManager((TaskStateProvider) taskStore);
+		return new InMemoryQueueManager((TaskStateProvider) taskStore, mainEventBus);
 	}
 
 	/**
@@ -156,10 +170,23 @@ public class A2AServerAutoConfiguration {
 		logger.info("Auto-configuring no-op PushNotificationSender (override to enable)");
 		return new PushNotificationSender() {
 			@Override
-			public void sendNotification(Task task) {
-				logger.debug("Push notification requested for task {} but sender is disabled", task.getId());
+			public void sendNotification(StreamingEventKind event, Task task) {
+				logger.debug("Push notification requested for task {} but sender is disabled", task.id());
 			}
 		};
+	}
+
+	/**
+	 * Provide MainEventBusProcessor that bridges the MainEventBus to task storage and
+	 * push notification dispatch. The processor background thread is started
+	 * automatically when DefaultRequestHandler is built.
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public MainEventBusProcessor mainEventBusProcessor(MainEventBus mainEventBus, TaskStore taskStore,
+			PushNotificationSender pushNotificationSender, QueueManager queueManager) {
+		logger.info("Auto-configuring MainEventBusProcessor for event processing");
+		return new MainEventBusProcessor(mainEventBus, taskStore, pushNotificationSender, queueManager);
 	}
 
 	/**
@@ -193,18 +220,31 @@ public class A2AServerAutoConfiguration {
 	 *
 	 * <p>
 	 * Note: Applications must provide their own {@link AgentExecutor} bean by extending
-	 * {@link DefaultAgentExecutor} and implementing the {@code executeAsMessage} method.
+	 * {@link DefaultAgentExecutor} and implementing the {@code execute} method.
+	 *
+	 * <p>
+	 * The {@link DefaultRequestHandler#builder()} replaces the removed
+	 * {@code DefaultRequestHandler.create()} factory method in SDK 1.4.0. Calling
+	 * {@code build()} automatically starts the {@link MainEventBusProcessor} background
+	 * thread.
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public RequestHandler requestHandler(AgentExecutor agentExecutor, TaskStore taskStore, QueueManager queueManager,
-			PushNotificationConfigStore pushConfigStore, PushNotificationSender pushSender,
+			PushNotificationConfigStore pushConfigStore, MainEventBusProcessor mainEventBusProcessor,
 			@Qualifier("a2aInternal") Executor executor) {
 
-		logger.info("Creating DefaultRequestHandler with A2A SDK components");
+		logger.info("Creating DefaultRequestHandler with A2A SDK 1.4.0 components");
 
-		return DefaultRequestHandler.create(agentExecutor, taskStore, queueManager, pushConfigStore, pushSender,
-				executor);
+		return DefaultRequestHandler.builder()
+			.agentExecutor(agentExecutor)
+			.taskStore(taskStore)
+			.queueManager(queueManager)
+			.pushConfigStore(pushConfigStore)
+			.mainEventBusProcessor(mainEventBusProcessor)
+			.executor(executor)
+			.eventConsumerExecutor(executor)
+			.build();
 	}
 
 }

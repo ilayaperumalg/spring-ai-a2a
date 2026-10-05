@@ -16,7 +16,7 @@
 
 package org.springaicommunity.a2a.server.controller;
 
-import io.a2a.spec.AgentCard;
+import org.a2aproject.sdk.spec.AgentCard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

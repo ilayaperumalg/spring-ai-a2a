@@ -19,16 +19,12 @@ package org.springaicommunity.a2a.server.executor;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import io.a2a.server.agentexecution.AgentExecutor;
-import io.a2a.server.agentexecution.RequestContext;
-import io.a2a.server.events.EventQueue;
-import io.a2a.server.tasks.TaskUpdater;
-import io.a2a.spec.JSONRPCError;
-import io.a2a.spec.Message;
-import io.a2a.spec.Task;
-import io.a2a.spec.TaskNotCancelableError;
-import io.a2a.spec.TaskState;
-import io.a2a.spec.TextPart;
+import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
+import org.a2aproject.sdk.server.agentexecution.RequestContext;
+import org.a2aproject.sdk.server.tasks.AgentEmitter;
+import org.a2aproject.sdk.spec.A2AError;
+import org.a2aproject.sdk.spec.Message;
+import org.a2aproject.sdk.spec.TextPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,16 +36,16 @@ import org.springframework.ai.chat.client.ChatClient;
  * <p>
  * This executor handles Task-based execution, managing the complete task lifecycle:
  * <ul>
- * <li>Creates and submits task via {@link TaskUpdater}</li>
+ * <li>Submits and starts task via {@link AgentEmitter}</li>
  * <li>Extracts user message from A2A protocol {@link Message}</li>
- * <li>Delegates to {@link #processUserMessage(String)} for agent-specific logic</li>
+ * <li>Delegates to {@link ChatClientExecutorHandler} for agent-specific logic</li>
  * <li>Wraps response as task artifact and completes the task</li>
  * </ul>
  *
  * <p>
- * Implementations only need to provide the {@link #processUserMessage(String)} method
- * that takes a simple String and returns a String response. All A2A protocol complexity
- * and task management is handled by this base class.
+ * Implementations only need to provide the {@link ChatClientExecutorHandler} that takes a
+ * Spring AI {@link ChatClient} and {@link RequestContext} and returns a String response.
+ * All A2A protocol complexity and task management is handled by this base class.
  *
  * @author Ilayaperumal Gopinathan
  * @author Christian Tzolov
@@ -72,59 +68,42 @@ public class DefaultAgentExecutor implements AgentExecutor {
 	 * Extracts text content from A2A message.
 	 */
 	public static String extractTextFromMessage(Message message) {
-		if (message == null || message.getParts() == null) {
+		if (message == null || message.parts() == null) {
 			return "";
 		}
-		return message.getParts()
+		return message.parts()
 			.stream()
 			.filter(part -> part instanceof TextPart)
-			.map(part -> ((TextPart) part).getText())
+			.map(part -> ((TextPart) part).text())
 			.collect(Collectors.joining())
 			.trim();
 	}
 
 	@Override
-	public void execute(RequestContext context, EventQueue eventQueue) throws JSONRPCError {
-		TaskUpdater updater = new TaskUpdater(context, eventQueue);
-
+	public void execute(RequestContext context, AgentEmitter emitter) throws A2AError {
 		try {
 			if (context.getTask() == null) {
-				updater.submit();
+				emitter.submit();
 			}
-			updater.startWork();
+			emitter.startWork();
 
-			// Call user's method with clean string parameter
 			String response = this.chatClientExecutorHandler.execute(this.chatClient, context);
 
 			logger.debug("AI Response: {}", response);
 
-			updater.addArtifact(List.of(new TextPart(response)), null, null, null);
-			updater.complete();
+			emitter.addArtifact(List.of(new TextPart(response)));
+			emitter.complete();
 		}
 		catch (Exception e) {
 			logger.error("Error executing agent task", e);
-			throw new JSONRPCError(-32603, "Agent execution failed: " + e.getMessage(), null);
+			emitter.fail(new A2AError(-32603, "Agent execution failed: " + e.getMessage(), null));
 		}
 	}
 
 	@Override
-	public void cancel(RequestContext context, EventQueue eventQueue) throws JSONRPCError {
+	public void cancel(RequestContext context, AgentEmitter emitter) throws A2AError {
 		logger.debug("Cancelling task: {}", context.getTaskId());
-
-		final Task task = context.getTask();
-
-		if (task.getStatus().state() == TaskState.CANCELED) {
-			// task already cancelled
-			throw new TaskNotCancelableError();
-		}
-
-		if (task.getStatus().state() == TaskState.COMPLETED) {
-			// task already completed
-			throw new TaskNotCancelableError();
-		}
-
-		TaskUpdater updater = new TaskUpdater(context, eventQueue);
-		updater.cancel();
+		emitter.cancel();
 	}
 
 }

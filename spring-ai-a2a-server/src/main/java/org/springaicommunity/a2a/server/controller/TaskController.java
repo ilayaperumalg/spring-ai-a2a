@@ -19,12 +19,12 @@ package org.springaicommunity.a2a.server.controller;
 import java.util.Map;
 import java.util.Set;
 
-import io.a2a.server.ServerCallContext;
-import io.a2a.server.requesthandlers.RequestHandler;
-import io.a2a.spec.JSONRPCError;
-import io.a2a.spec.Task;
-import io.a2a.spec.TaskIdParams;
-import io.a2a.spec.TaskQueryParams;
+import org.a2aproject.sdk.server.ServerCallContext;
+import org.a2aproject.sdk.server.requesthandlers.RequestHandler;
+import org.a2aproject.sdk.spec.A2AError;
+import org.a2aproject.sdk.spec.CancelTaskParams;
+import org.a2aproject.sdk.spec.Task;
+import org.a2aproject.sdk.spec.TaskQueryParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public class TaskController {
 	 * Returns task status and results.
 	 */
 	@GetMapping(path = "/{taskId}", produces = MediaType.APPLICATION_JSON_VALUE)
-	public Task getTask(@PathVariable String taskId) throws JSONRPCError {
+	public Task getTask(@PathVariable String taskId) throws A2AError {
 		logger.info("Getting task: {}", taskId);
 
 		try {
@@ -66,16 +66,16 @@ public class TaskController {
 			TaskQueryParams params = new TaskQueryParams(taskId);
 
 			Task task = this.requestHandler.onGetTask(params, context);
-			logger.debug("Task retrieved: {} - state: {}", taskId, task.getStatus().state());
+			logger.debug("Task retrieved: {} - state: {}", taskId, task.status().state());
 			return task;
 		}
-		catch (JSONRPCError e) {
+		catch (A2AError e) {
 			logger.error("Error getting task: {}", taskId, e);
 			throw e;
 		}
 		catch (Exception e) {
 			logger.error("Unexpected error getting task: {}", taskId, e);
-			throw new JSONRPCError(-32603, "Internal error: " + e.getMessage(), null);
+			throw new A2AError(-32603, "Internal error: " + e.getMessage(), null);
 		}
 	}
 
@@ -83,24 +83,24 @@ public class TaskController {
 	 * Cancels a running task.
 	 */
 	@PostMapping(path = "/{taskId}/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
-	public Task cancelTask(@PathVariable String taskId) throws JSONRPCError {
+	public Task cancelTask(@PathVariable String taskId) throws A2AError {
 		logger.info("Cancelling task: {}", taskId);
 
 		try {
 			ServerCallContext context = new ServerCallContext(null, Map.of(), Set.of());
-			TaskIdParams params = new TaskIdParams(taskId);
+			CancelTaskParams params = new CancelTaskParams(taskId);
 
 			Task task = this.requestHandler.onCancelTask(params, context);
 			logger.debug("Task cancelled: {}", taskId);
 			return task;
 		}
-		catch (JSONRPCError e) {
+		catch (A2AError e) {
 			logger.error("Error cancelling task: {}", taskId, e);
 			throw e;
 		}
 		catch (Exception e) {
 			logger.error("Unexpected error cancelling task: {}", taskId, e);
-			throw new JSONRPCError(-32603, "Internal error: " + e.getMessage(), null);
+			throw new A2AError(-32603, "Internal error: " + e.getMessage(), null);
 		}
 	}
 

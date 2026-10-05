@@ -22,7 +22,7 @@
 	<properties>
 		<java.version>17</java.version>
 		<maven.deploy.skip>true</maven.deploy.skip>
-		<io.a2a.sdk.version>0.3.3.Final</io.a2a.sdk.version>
+		<a2a.sdk.version>1.4.0.Final</a2a.sdk.version>
 	</properties>
 
 	<dependencies>
@@ -47,15 +47,15 @@
         </dependency> -->
 
 		<dependency>
-			<groupId>io.github.a2asdk</groupId>
+			<groupId>org.a2aproject.sdk</groupId>
 			<artifactId>a2a-java-sdk-client</artifactId>
-			<version>${io.a2a.sdk.version}</version>
+			<version>${a2a.sdk.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>io.github.a2asdk</groupId>
+			<groupId>org.a2aproject.sdk</groupId>
 			<artifactId>a2a-java-sdk-client-transport-jsonrpc</artifactId>
-			<version>${io.a2a.sdk.version}</version>
+			<version>${a2a.sdk.version}</version>
 		</dependency>
 
 
@@ -91,6 +91,9 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<mainClass>org.springaicommunity.a2a.examples.host.HostApplication</mainClass>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
